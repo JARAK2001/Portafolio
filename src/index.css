@@ -1,0 +1,53 @@
+:root {
+  --bg: #080815;
+  --panel: #111120;
+  --border: rgba(205, 195, 244, 0.18);
+  --text: #f2efff;
+  --muted: #aaa7c1;
+  --accent: #c7b5ff;
+  --accent-2: #efa8e4;
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  color-scheme: dark;
+  font: 16px/1.5 var(--sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  scroll-padding-top: 76px;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--bg); color: var(--text); }
+#root { min-height: 100svh; isolation: isolate; }
+
+h1, h2 { font-family: var(--serif); }
+button, a { font: inherit; }
+button { color: inherit; }
+a:focus-visible,
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+::selection { background: rgba(199, 181, 255, 0.35); color: #fffaff; }
+
+html.reduced-motion { scroll-behavior: auto; }
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

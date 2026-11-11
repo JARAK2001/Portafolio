@@ -1,0 +1,1004 @@
+{
+  "meta": {
+    "autor": "Andrés Cifuentes",
+    "titulo": "Portafolio — base de proyectos",
+    "fechaCorte": "2026-11-04",
+    "version": "1.0.0",
+    "descripcion": "Fuente de verdad de los proyectos para alimentar el sitio del portafolio.",
+    "criterios": {
+      "complejidad": 0.25,
+      "impacto": 0.25,
+      "diferenciacion": 0.2,
+      "terminacion": 0.15,
+      "evidencia": 0.1,
+      "documentacion": 0.05
+    },
+    "tiers": {
+      "alto": ">= 4.00",
+      "medio": "2.60 - 3.99",
+      "bajo": "< 2.60"
+    }
+  },
+  "proyectos": [
+    {
+      "id": "fantasias",
+      "nombre": "Fantasías",
+      "subtitulo": "E-commerce conversacional",
+      "tier": "alto",
+      "puntaje": 4.85,
+      "estado": "Producto desplegado",
+      "periodo": "Junio – octubre de 2026",
+      "rol": "Producto, arquitectura, backend, frontend e IA",
+      "demo": "https://frontend-production-de6a.up.railway.app",
+      "repositorio": null,
+      "resumen": "Una tienda de bienestar íntimo donde la conversación, no el catálogo, construye la compra.",
+      "problema": "Comprar bienestar íntimo en Colombia es incómodo: catálogos que parecen ferreterías y un cliente que no sabe qué producto quiere, pero sí qué quiere vivir.",
+      "propuesta": "Sofía, una asistente de IA, pregunta con quién, dónde y qué rol; resume la escena; y solo al confirmar escribe una historia donde los productos del catálogo aparecen como parte natural del relato.",
+      "stack": [
+        "React 19",
+        "Vite",
+        "TypeScript",
+        "Tailwind",
+        "Express 5",
+        "Prisma",
+        "PostgreSQL",
+        "OpenAI",
+        "Wompi",
+        "Railway"
+      ],
+      "destacados": [
+        "Monolito modular con 18 módulos de backend y 204 archivos fuente.",
+        "Catálogo cerrado en la fase de historia; la IA emite etiquetas de producto que el frontend valida.",
+        "Webhook de Wompi firmado con HMAC e idempotente; stock reservado al crear el pedido.",
+        "Cuatro programas de negocio sobre el mismo pedido: referidos, afiliados, mayoristas y directorio médico.",
+        "Scripts que recorren la compra completa (10 comprobaciones) y la compra de invitado (8/8)."
+      ],
+      "evidencia": [
+        {
+          "tipo": "commits",
+          "detalle": "152 commits entre junio y octubre de 2026",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "70 archivos entre Vitest y Cypress",
+          "verificado": true
+        },
+        {
+          "tipo": "demo",
+          "detalle": "Frontend y API desplegados en Railway",
+          "verificado": true
+        },
+        {
+          "tipo": "documentacion",
+          "detalle": "01-IDEA, 02-DESARROLLO, 03-ESTADO, 04-PENDIENTES",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Capturas sin contenido explícito",
+        "Repositorio público o enlace privado",
+        "Revisar URLs de Railway",
+        "Verificar .env fuera del repositorio"
+      ],
+      "tags": [
+        "IA",
+        "E-commerce",
+        "Pagos",
+        "Full-stack"
+      ],
+      "sensible": true,
+      "orden": 1
+    },
+    {
+      "id": "cerebro-voz",
+      "nombre": "Cerebro Voz",
+      "subtitulo": "Second Brain Voice AI",
+      "tier": "alto",
+      "puntaje": 4.55,
+      "estado": "Producto desplegado en web y Android",
+      "periodo": "Julio – septiembre de 2026",
+      "rol": "Arquitectura, backend, IA, web y app Android",
+      "demo": "https://web-production-80df5.up.railway.app",
+      "repositorio": null,
+      "resumen": "Una memoria personal que escucha conversaciones, separa las voces y responde con citas exactas.",
+      "problema": "Las conversaciones importantes se pierden. Los transcriptores no identifican hablantes y los asistentes genéricos no saben quién dijo qué ni en qué segundo.",
+      "propuesta": "Grabar, transcribir, diarizar, reconocer contactos por huella de voz, indexar semánticamente y preguntarle a Alice sobre lo dicho, con citas de hablante y tiempo.",
+      "stack": [
+        "FastAPI",
+        "PostgreSQL",
+        "Qdrant",
+        "AssemblyAI",
+        "Groq",
+        "Jina",
+        "Kotlin",
+        "Jetpack Compose",
+        "React",
+        "Railway"
+      ],
+      "destacados": [
+        "Tres plataformas: backend FastAPI, web React y app Android nativa.",
+        "Diarización, huellas de voz, RAG con citas, resúmenes y compromisos.",
+        "Regla de diseño: ningún fallback silencioso que devuelva datos falsos.",
+        "La misma regla de agrupación de grabaciones replicada en backend, web y Android.",
+        "Servicio en primer plano y sesión cifrada en Android."
+      ],
+      "evidencia": [
+        {
+          "tipo": "commits",
+          "detalle": "31 commits entre julio y septiembre de 2026",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "30 archivos de prueba",
+          "verificado": true
+        },
+        {
+          "tipo": "demo",
+          "detalle": "API y web desplegadas en Railway; app en dispositivo físico",
+          "verificado": true
+        },
+        {
+          "tipo": "documentacion",
+          "detalle": "RESUMEN_PROYECTO, FLUJO_DEL_SISTEMA, CONTEXTO_PROYECTO",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Demo con datos sintéticos",
+        "Capturas web y Android",
+        "Repositorio público o enlace privado",
+        "Verificar claves de AssemblyAI, Groq y Jina"
+      ],
+      "tags": [
+        "IA",
+        "Voz",
+        "RAG",
+        "Android",
+        "Full-stack"
+      ],
+      "sensible": true,
+      "orden": 2
+    },
+    {
+      "id": "guardianes",
+      "nombre": "Guardianes de los Ríos",
+      "subtitulo": "Plataforma comunitaria de Caldono",
+      "tier": "alto",
+      "puntaje": 4,
+      "estado": "Full-stack en construcción",
+      "periodo": "2026",
+      "rol": "Producto, arquitectura, frontend, backend y 3D",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Plataforma ciudadana para documentar, georreferenciar y cuidar las fuentes hídricas de Caldono, Cauca.",
+      "problema": "La comunidad de Pescador, en Caldono, necesita documentar observaciones ambientales, compartir conocimiento y conservar la memoria de sus ríos, sin un canal ordenado para hacerlo.",
+      "propuesta": "Un muro comunitario y un mapa ambiental conectados. Los reportes se envían con ubicación, categoría y fotos, y solo se publican después de moderación.",
+      "stack": [
+        "React 19",
+        "Vite",
+        "TypeScript",
+        "Tailwind 4",
+        "TanStack Query",
+        "Express",
+        "Prisma",
+        "PostgreSQL",
+        "Leaflet",
+        "Three.js"
+      ],
+      "destacados": [
+        "Monorepo con apps/web, apps/api y packages/shared.",
+        "Mapa con Leaflet y OpenStreetMap, reportes georreferenciados y geometría de ríos compartida.",
+        "Cola de moderación con decisión e historial antes de publicar.",
+        "Figura 3D de Cotoplo con cámara ortográfica y animación procedural de respaldo.",
+        "Documento de levantamiento de requisitos y mockups."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "README, levantamiento de requisitos y documento de identidad",
+          "verificado": true
+        },
+        {
+          "tipo": "mockups",
+          "detalle": "Carpeta img y animaciones de Cotoplo",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "Sin pruebas automatizadas",
+          "verificado": false
+        },
+        {
+          "tipo": "commits",
+          "detalle": "Sin historial de commits",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "Inicializar Git y registrar historia",
+        "Agregar pruebas de API y moderación",
+        "Publicar demo con datos de ejemplo",
+        "Revisar accesibilidad y optimizar imágenes",
+        "Eliminar el duplicado Guardianges de los rios"
+      ],
+      "tags": [
+        "Impacto social",
+        "Mapas",
+        "Full-stack",
+        "3D",
+        "Moderación"
+      ],
+      "sensible": false,
+      "orden": 3
+    },
+    {
+      "id": "electric-lab",
+      "nombre": "Electric Lab",
+      "subtitulo": "Laboratorio de electricidad",
+      "tier": "medio",
+      "puntaje": 3.75,
+      "estado": "v0.2 funcional",
+      "periodo": "2026",
+      "rol": "Dominio, simulación, frontend y 3D",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Un laboratorio donde el circuito se arma, se ejecuta y se mide en 2D y 3D.",
+      "problema": "La electricidad se enseña con fórmulas y diagramas estáticos; el estudiante no ve qué pasa cuando falta un cable, hay un corto o un LED está invertido.",
+      "propuesta": "Construir el circuito, ejecutarlo y medirlo. Esquema 2D editable y montaje 3D sincronizados, con lecciones y retos.",
+      "stack": [
+        "React",
+        "Vite",
+        "TypeScript",
+        "Three.js",
+        "Vitest",
+        "Docker"
+      ],
+      "destacados": [
+        "Dominio puro en src/domain/circuit/solve.ts: análisis nodal, Ley de Ohm y detección de fallos.",
+        "Ocho lecciones en tres unidades y cinco retos con validación.",
+        "Multímetro, voltímetro, amperímetro y osciloscopio.",
+        "Vista 2D y 3D del mismo circuito."
+      ],
+      "evidencia": [
+        {
+          "tipo": "tests",
+          "detalle": "4 archivos de prueba",
+          "verificado": true
+        },
+        {
+          "tipo": "build",
+          "detalle": "npm run build documentado",
+          "verificado": true
+        },
+        {
+          "tipo": "docker",
+          "detalle": "docker-compose.yml",
+          "verificado": true
+        },
+        {
+          "tipo": "arquitectura",
+          "detalle": "docs/arquitectura.md",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Demo publicada",
+        "Capturas 2D y 3D",
+        "README narrativo",
+        "Inicializar Git"
+      ],
+      "tags": [
+        "Educación",
+        "Simulación",
+        "3D",
+        "Clean Architecture"
+      ],
+      "sensible": false,
+      "orden": 4
+    },
+    {
+      "id": "truthforge",
+      "nombre": "TruthForge",
+      "subtitulo": "Laboratorio de lógica proposicional",
+      "tier": "medio",
+      "puntaje": 3.45,
+      "estado": "MVP",
+      "periodo": "Septiembre – octubre de 2026",
+      "rol": "Producto, motor de lógica, backend y frontend",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Un laboratorio de lógica que enseña el procedimiento de las tablas de verdad, no solo el resultado.",
+      "problema": "La lógica proposicional se enseña con tablas copiadas; el estudiante aprende el resultado pero no cómo se parsea y evalúa una expresión.",
+      "propuesta": "Lecciones, ejercicios, constructor de expresiones, retos entre jugadores y progreso con rachas.",
+      "stack": [
+        "React",
+        "Vite",
+        "Tailwind",
+        "Node",
+        "Express",
+        "Prisma",
+        "PostgreSQL",
+        "Socket.io",
+        "Docker"
+      ],
+      "destacados": [
+        "Motor de lógica aislado en packages/@truthforge/logic-engine.",
+        "Parser, AST y evaluador reutilizables entre frontend y backend.",
+        "Monorepo con workspaces y Docker Compose.",
+        "Base preparada para retos en tiempo real con Socket.io."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "PRD v1.0",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "5 archivos de prueba",
+          "verificado": true
+        },
+        {
+          "tipo": "commits",
+          "detalle": "4 commits",
+          "verificado": true
+        },
+        {
+          "tipo": "demo",
+          "detalle": "No publicada",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "README propio",
+        "Demo desplegada",
+        "Capturas",
+        "Más historial de commits"
+      ],
+      "tags": [
+        "Educación",
+        "Lógica",
+        "Monorepo",
+        "Full-stack"
+      ],
+      "sensible": false,
+      "orden": 5
+    },
+    {
+      "id": "nutriia",
+      "nombre": "NutriIA",
+      "subtitulo": "Recomendador de comidas con presupuesto",
+      "tier": "medio",
+      "puntaje": 3.3,
+      "estado": "MVP de uso personal",
+      "periodo": "Agosto – septiembre de 2026",
+      "rol": "Producto, backend, frontend e IA",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Una app que decide qué comer con el presupuesto y la dieta reales de una persona.",
+      "problema": "A la hora de comer no hay claridad sobre qué preparar con poco dinero, sin repetir y comiendo mejor.",
+      "propuesta": "Cruzar presupuesto, dieta y variedad; Alice explica y propone, pero el backend valida y calcula los costos.",
+      "stack": [
+        "React",
+        "Vite",
+        "Tailwind",
+        "Node",
+        "TypeScript",
+        "Prisma",
+        "PostgreSQL",
+        "Groq"
+      ],
+      "destacados": [
+        "La IA nunca pone precios: el backend calcula con unidades de compra enteras.",
+        "Validación estricta de las recetas de Alice: catálogo, porciones, costo, dieta y azúcar.",
+        "Motor de variedad con rotación y penalización de repetición.",
+        "46 ingredientes y 37 recetas en el banco."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "CONTEXTO_PROYECTO y Plan_NutriIA",
+          "verificado": true
+        },
+        {
+          "tipo": "datos",
+          "detalle": "54 recomendaciones pedidas, 0 aceptadas",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "Sin pruebas automatizadas",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "Pruebas del motor de costos",
+        "Uso diario y registro de aceptación",
+        "Capturas",
+        "Verificar precios estimados"
+      ],
+      "tags": [
+        "IA",
+        "Salud",
+        "Producto",
+        "Full-stack"
+      ],
+      "sensible": true,
+      "orden": 6
+    },
+    {
+      "id": "logic-forge",
+      "nombre": "Logic Forge",
+      "subtitulo": "Simulador de computación",
+      "tier": "medio",
+      "puntaje": 3.15,
+      "estado": "Funcional con tutor de IA",
+      "periodo": "Octubre de 2026",
+      "rol": "Producto, simulación, backend, frontend e IA",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Un juego educativo para construir una computadora desde un cable y una señal.",
+      "problema": "La arquitectura de computadores se enseña como una lista de cajas negras; el estudiante no ve cómo encajan las piezas.",
+      "propuesta": "Construir por capas: señal, lógica, circuito, aritmética, memoria, ALU, CPU, computadora y programa. Cada componente se puede abrir.",
+      "stack": [
+        "Vite",
+        "TypeScript",
+        "Express",
+        "PostgreSQL",
+        "Groq",
+        "Docker",
+        "Vitest"
+      ],
+      "destacados": [
+        "Progresión de transistores a CPU con componentes inspeccionables.",
+        "Tutor de IA integrado con Groq.",
+        "14 archivos de prueba y Docker Compose.",
+        "Base de datos separada por proyecto."
+      ],
+      "evidencia": [
+        {
+          "tipo": "tests",
+          "detalle": "14 archivos de prueba",
+          "verificado": true
+        },
+        {
+          "tipo": "documentacion",
+          "detalle": "Documento de definición del proyecto",
+          "verificado": true
+        },
+        {
+          "tipo": "commits",
+          "detalle": "1 commit",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Demo publicada",
+        "Capturas",
+        "Más commits",
+        "README narrativo"
+      ],
+      "tags": [
+        "Educación",
+        "Simulación",
+        "IA",
+        "Docker"
+      ],
+      "sensible": false,
+      "orden": 7
+    },
+    {
+      "id": "packet-forge",
+      "nombre": "Packet Forge",
+      "subtitulo": "Laboratorio de redes",
+      "tier": "medio",
+      "puntaje": 3,
+      "estado": "Primer laboratorio funcional",
+      "periodo": "Octubre de 2026",
+      "rol": "Producto, simulación y frontend",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Arma la red y mira cómo viaja un paquete, salto a salto.",
+      "problema": "Las redes se aprenden como capas abstractas; no se ve qué pasa cuando falta un cable o un router no tiene siguiente salto.",
+      "propuesta": "Un paquete que solo avanza si el camino existe, con vista 2D para construir y 3D para entender.",
+      "stack": [
+        "React",
+        "Vite",
+        "TypeScript",
+        "Vitest"
+      ],
+      "destacados": [
+        "Un envío mueve un solo paquete, un salto por vez.",
+        "Vistas 2D y 3D sincronizadas sobre el mismo estado.",
+        "Doble registro lingüístico: simple y técnico.",
+        "Progresión por niveles con piezas limitadas."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "docs/construccion.md",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "2 archivos de prueba",
+          "verificado": true
+        },
+        {
+          "tipo": "demo",
+          "detalle": "No publicada",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "Completar el primer laboratorio",
+        "Demo o video",
+        "Capturas",
+        "Inicializar Git"
+      ],
+      "tags": [
+        "Educación",
+        "Redes",
+        "Simulación",
+        "3D"
+      ],
+      "sensible": false,
+      "orden": 8
+    },
+    {
+      "id": "arbol-estaciones",
+      "nombre": "Árbol de las Estaciones",
+      "subtitulo": "Experiencia 3D procedural",
+      "tier": "medio",
+      "puntaje": 2.9,
+      "estado": "Prototipo avanzado",
+      "periodo": "2026",
+      "rol": "3D, frontend, API y dirección de arte",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Un árbol 3D que cambia con las estaciones y guarda un museo de voces.",
+      "problema": "Las experiencias narrativas suelen ser páginas planas; un árbol puede ser metáfora y navegación a la vez.",
+      "propuesta": "Una escena 3D procedural con estaciones y un museo de voces con autenticación.",
+      "stack": [
+        "Next.js 16",
+        "React 19",
+        "Three.js",
+        "React Three Fiber",
+        "drei",
+        "rapier",
+        "Zustand",
+        "Tailwind 4"
+      ],
+      "destacados": [
+        "Árbol generado por procedimiento, no un modelo estático.",
+        "Dominio de estaciones separado de la escena 3D.",
+        "Museo de voces con login, placas y bocetos.",
+        "API interna de Next.js para el museo."
+      ],
+      "evidencia": [
+        {
+          "tipo": "codigo",
+          "detalle": "Escena, dominio de estaciones y museo",
+          "verificado": true
+        },
+        {
+          "tipo": "readme",
+          "detalle": "Es el README por defecto de Next.js",
+          "verificado": false
+        },
+        {
+          "tipo": "tests",
+          "detalle": "Sin pruebas automatizadas",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "README real",
+        "Capturas de las cuatro estaciones",
+        "Video",
+        "Inicializar Git"
+      ],
+      "tags": [
+        "3D",
+        "Next.js",
+        "Creativo",
+        "Frontend"
+      ],
+      "sensible": false,
+      "orden": 9
+    },
+    {
+      "id": "centralizador-mensajes",
+      "nombre": "Centralizador de mensajes",
+      "subtitulo": "Arquitectura y análisis de riesgo",
+      "tier": "medio",
+      "puntaje": 2.8,
+      "estado": "Especificación, sin implementación",
+      "periodo": "2026",
+      "rol": "Análisis, arquitectura y diseño de seguridad",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Cómo diseñé un centralizador de mensajes de varios celulares antes de escribir código.",
+      "problema": "Varios celulares Android y varias redes sociales; se necesita un solo panel en solo lectura, separado por dispositivo y red.",
+      "propuesta": "Captura por notificación en el celular, backend que valida y clasifica, y dashboard en tiempo real por WebSocket.",
+      "stack": [
+        "Node",
+        "Express/Fastify",
+        "Socket.io",
+        "PostgreSQL",
+        "React",
+        "Vite",
+        "Tailwind"
+      ],
+      "destacados": [
+        "Análisis de permisos, batería y whitelisting por fabricante.",
+        "Postura legal explícita: solo lectura y sin envío de mensajes.",
+        "Claves por dispositivo, HTTPS, rotación y límite de tasa.",
+        "Idempotencia, tabla devices y rooms por dispositivo y categoría."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "Especificación completa y observaciones de ingeniería",
+          "verificado": true
+        },
+        {
+          "tipo": "codigo",
+          "detalle": "Sin implementación",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "MVP con datos simulados o reescritura como caso de arquitectura",
+        "Anonimizar dispositivos y mensajes",
+        "Diagrama de arquitectura"
+      ],
+      "tags": [
+        "Arquitectura",
+        "Seguridad",
+        "Tiempo real",
+        "Análisis"
+      ],
+      "sensible": true,
+      "orden": 10
+    },
+    {
+      "id": "sketch2ai",
+      "nombre": "Sketch2AI",
+      "subtitulo": "Boceto a imagen con IA",
+      "tier": "medio",
+      "puntaje": 2.6,
+      "estado": "Prototipo funcional",
+      "periodo": "2026",
+      "rol": "Producto, backend, frontend e IA",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Dibuja un boceto y conviértelo en una imagen generada por IA.",
+      "problema": "Pasar de una idea dibujada a una imagen usable requiere herramientas de diseño o prompts complicados.",
+      "propuesta": "Un lienzo con estilos y formatos, un backend que construye el prompt y genera la imagen, y un historial en PostgreSQL.",
+      "stack": [
+        "React 19",
+        "Vite",
+        "Tailwind 4",
+        "FastAPI",
+        "SQLAlchemy",
+        "PostgreSQL",
+        "Groq",
+        "ControlNet",
+        "Pollinations"
+      ],
+      "destacados": [
+        "Abstracción de proveedores de imagen intercambiables.",
+        "Flujo completo: lienzo, prompt, generación y persistencia.",
+        "Estilos y formatos pensados para el destino de la imagen.",
+        "Lección: el fallback silencioso a Pollinations debería ser visible."
+      ],
+      "evidencia": [
+        {
+          "tipo": "codigo",
+          "detalle": "Endpoints /api/health, /api/prompt y /api/generations",
+          "verificado": true
+        },
+        {
+          "tipo": "tests",
+          "detalle": "Sin pruebas automatizadas",
+          "verificado": false
+        },
+        {
+          "tipo": "demo",
+          "detalle": "No desplegado",
+          "verificado": false
+        }
+      ],
+      "pendientes": [
+        "Cerrar el flujo principal",
+        "Hacer visible el proveedor usado",
+        "Pruebas",
+        "README con capturas",
+        "Inicializar Git"
+      ],
+      "tags": [
+        "IA",
+        "Imagen",
+        "Prototipo",
+        "FastAPI"
+      ],
+      "sensible": false,
+      "orden": 11
+    },
+    {
+      "id": "investigacion-estudio",
+      "nombre": "Investigación y Estudio",
+      "subtitulo": "Base de conocimiento de telecomunicaciones",
+      "tier": "bajo",
+      "puntaje": 2.2,
+      "estado": "En progreso",
+      "periodo": "2026",
+      "rol": "Investigación, curaduría y documentación",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Una base de conocimiento autodidacta para llegar preparado a Ingeniería en Telecomunicaciones.",
+      "problema": "Prepararse para una carrera técnica requiere orden, no acumulación de apuntes.",
+      "propuesta": "Una ruta por fases, plantillas de tema y un flujo de investigación a video con NotebookLM.",
+      "stack": [
+        "Markdown",
+        "NotebookLM"
+      ],
+      "destacados": [
+        "Ocho áreas de estudio y una carpeta de plantillas.",
+        "Reglas de calidad: 800–2.000 palabras, ejemplos resueltos y preguntas guía.",
+        "Evidencia de cómo aprendo, no de un producto de software."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "47 archivos y ruta CARRERA-TELECOMUNICACIONES.md",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Completar el Bloque A",
+        "Registrar progreso real"
+      ],
+      "tags": [
+        "Aprendizaje",
+        "Documentación",
+        "Telecomunicaciones"
+      ],
+      "sensible": false,
+      "orden": 12
+    },
+    {
+      "id": "arduino",
+      "nombre": "Arduino — PIR y termostato",
+      "subtitulo": "Diagnóstico y respaldo de firmware",
+      "tier": "bajo",
+      "puntaje": 2.1,
+      "estado": "Experimental",
+      "periodo": "2026",
+      "rol": "Hardware, firmware y diagnóstico",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Diagnóstico de sensores de movimiento y respaldo de firmware de un termostato Mega.",
+      "problema": "Los sensores y el firmware de equipos reales requieren diagnóstico y respaldo antes de intervenirlos.",
+      "propuesta": "Sketches de diagnóstico para PIR en distintas placas y conservación de la imagen original del termostato.",
+      "stack": [
+        "Arduino",
+        "C++"
+      ],
+      "destacados": [
+        "Variantes para distintas placas.",
+        "Respaldo de firmware en .bin y .hex.",
+        "Lectura serial y calibración de sensores."
+      ],
+      "evidencia": [
+        {
+          "tipo": "codigo",
+          "detalle": "4 sketches y firmware de respaldo",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "README con resultado de cada sketch",
+        "Fotos del montaje",
+        "No publicar firmware de terceros"
+      ],
+      "tags": [
+        "Hardware",
+        "Arduino",
+        "Embebidos"
+      ],
+      "sensible": false,
+      "orden": 13
+    },
+    {
+      "id": "escaner-inventario",
+      "nombre": "Escáner de inventario",
+      "subtitulo": "Descubrimiento de producto",
+      "tier": "bajo",
+      "puntaje": 2.05,
+      "estado": "Solo requisitos, sin código",
+      "periodo": "Octubre de 2026",
+      "rol": "Análisis de requerimientos y propuesta de producto",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Cómo convertir una conversación con un cliente en un modelo de dominio para inventario por zonas.",
+      "problema": "Una empresa de confección necesitaba validar que cada prenda escaneada perteneciera a la zona correcta y ver el avance en vivo.",
+      "propuesta": "Pasar del Excel a un sistema con perfiles por zona, trazabilidad por empleado y administración completa.",
+      "stack": [
+        "Análisis",
+        "Modelado de dominio"
+      ],
+      "destacados": [
+        "Requerimiento reconstruido desde una conversación real.",
+        "Modelo: zona, prenda, empleado, escaneo y stock.",
+        "Trazabilidad por fecha, hora y responsable."
+      ],
+      "evidencia": [
+        {
+          "tipo": "documentacion",
+          "detalle": "Brief del cliente y Excel de inventario (no publicable)",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Caso de estudio anonimizado",
+        "Diagrama de dominio",
+        "No publicar el Excel del cliente"
+      ],
+      "tags": [
+        "Producto",
+        "Requerimientos",
+        "Inventario"
+      ],
+      "sensible": true,
+      "orden": 14
+    },
+    {
+      "id": "bullet-dodger",
+      "nombre": "Bullet Dodger",
+      "subtitulo": "Primer juego en Pygame",
+      "tier": "bajo",
+      "puntaje": 2.05,
+      "estado": "Prototipo",
+      "periodo": "2026",
+      "rol": "Programación y diseño del juego",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Un juego experimental en Pygame: esquiva las balas con el mouse.",
+      "problema": "Aprender los fundamentos de un bucle de juego, eventos y render.",
+      "propuesta": "Pantalla de inicio, control por mouse, pantalla completa y bucle a 60 FPS.",
+      "stack": [
+        "Python",
+        "Pygame"
+      ],
+      "destacados": [
+        "Bucle de juego y manejo de eventos.",
+        "Constantes separadas y recursos.",
+        "Prototipo honesto, no juego terminado."
+      ],
+      "evidencia": [
+        {
+          "tipo": "codigo",
+          "detalle": "main.py, constantes.py e ícono",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Terminar balas, colisiones y puntaje",
+        "GIF o captura",
+        "README"
+      ],
+      "tags": [
+        "Juegos",
+        "Python",
+        "Pygame"
+      ],
+      "sensible": false,
+      "orden": 15
+    },
+    {
+      "id": "utilidades",
+      "nombre": "Utilidades",
+      "subtitulo": "Automatización cotidiana",
+      "tier": "bajo",
+      "puntaje": 2,
+      "estado": "Funcional",
+      "periodo": "2026",
+      "rol": "Automatización",
+      "demo": null,
+      "repositorio": null,
+      "resumen": "Scripts para organizar descargas por tipo de archivo y generar especificaciones de requisitos en Word.",
+      "problema": "Tareas repetitivas de organización y documentación consumen tiempo.",
+      "propuesta": "Organizador multiplataforma de descargas y generador de ERS con python-docx.",
+      "stack": [
+        "Python",
+        "pathlib",
+        "python-docx"
+      ],
+      "destacados": [
+        "Clasificación por extensión en seis categorías.",
+        "Documento Word con estilos, tablas y encabezados.",
+        "Rutas multiplataforma con pathlib."
+      ],
+      "evidencia": [
+        {
+          "tipo": "codigo",
+          "detalle": "organizar.py y documento.py",
+          "verificado": true
+        }
+      ],
+      "pendientes": [
+        "Manejo de errores y --dry-run",
+        "Documentar el generador",
+        "Repositorio de utilidades"
+      ],
+      "tags": [
+        "Automatización",
+        "Python",
+        "Documentación"
+      ],
+      "sensible": false,
+      "orden": 16
+    }
+  ],
+  "presentacion": {
+    "id": "portafolio-arbol-3d",
+    "nombre": "Portafolio — árbol 3D",
+    "concepto": "Ideas que echan raíces",
+    "estado": "En construcción",
+    "stack": [
+      "React 19",
+      "Vite",
+      "Three.js"
+    ],
+    "nota": "No compite en el ranking. Es el marco que debe consumir este archivo.",
+    "pendientes": [
+      "Reemplazar los cuatro proyectos genéricos de profile.js",
+      "Completar enlaces y contacto",
+      "Agregar capturas y videos",
+      "Revisar rendimiento y accesibilidad",
+      "Publicar"
+    ]
+  },
+  "excluidos": [
+    {
+      "carpeta": "cobros",
+      "motivo": "Vacía"
+    },
+    {
+      "carpeta": "xiaomi",
+      "motivo": "Vacía"
+    },
+    {
+      "carpeta": "investigacion/ecommerces",
+      "motivo": "Vacía"
+    },
+    {
+      "carpeta": "investigacion/linkedind",
+      "motivo": "Vacía"
+    },
+    {
+      "carpeta": "Guardianges de los rios",
+      "motivo": "Duplicado incompleto; el bueno es Guardiandes de los rios"
+    },
+    {
+      "carpeta": "pruebas cell",
+      "motivo": "Información personal y de navegación; no publicar"
+    },
+    {
+      "carpeta": "documentos fantasias",
+      "motivo": "Documentación de Fantasías, no proyecto independiente"
+    },
+    {
+      "carpeta": "iso/fantasias",
+      "motivo": "Versión previa de Fantasías"
+    },
+    {
+      "carpeta": "Poryecto Fantacia",
+      "motivo": "Idea inicial de Fantasías"
+    }
+  ]
+}
