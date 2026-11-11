@@ -150,59 +150,6 @@ function buildHill() {
   return mesh
 }
 
-function buildTreeRoots(count = 7) {
-  const group = new THREE.Group()
-  const materials = [
-    new THREE.MeshStandardMaterial({ color: '#422f48', roughness: 0.96 }),
-    new THREE.MeshStandardMaterial({ color: '#604267', roughness: 0.96 }),
-  ]
-  const rings = 20
-  const sides = 8
-  const center = new THREE.Vector3()
-
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 + Math.sin(i * 2.1) * 0.16 + (Math.random() - 0.5) * 0.16
-    const length = (0.85 + Math.random() * 0.72) * (i % 3 === 0 ? 1.14 : 1)
-    const bend = (Math.random() - 0.5) * 0.86
-    const points = []
-    for (let step = 0; step <= 5; step++) {
-      const t = step / 5
-      const radius = 0.15 + length * t
-      const direction = angle + bend * t
-      const x = Math.cos(direction) * radius
-      const z = Math.sin(direction) * radius
-      const lift = (1 - t) * 0.14 + 0.008
-      points.push(new THREE.Vector3(x, terrainHeight(x, z) + lift, z))
-    }
-
-    const curve = new THREE.CatmullRomCurve3(points)
-    const geometry = new THREE.TubeGeometry(curve, rings, 1, sides, false)
-    const position = geometry.attributes.position
-    const ringSize = sides + 1
-    for (let ring = 0; ring <= rings; ring++) {
-      const t = ring / rings
-      curve.getPointAt(t, center)
-      const radius = (0.11 + 0.025 * Math.sin(i * 1.7)) * Math.pow(1 - t, 1.18) + 0.004
-      for (let side = 0; side <= sides; side++) {
-        const vertex = ring * ringSize + side
-        const offsetX = position.getX(vertex) - center.x
-        const offsetY = position.getY(vertex) - center.y
-        const offsetZ = position.getZ(vertex) - center.z
-        const lengthToCenter = Math.hypot(offsetX, offsetY, offsetZ) || 1
-        position.setXYZ(
-          vertex,
-          center.x + (offsetX / lengthToCenter) * radius,
-          center.y + (offsetY / lengthToCenter) * radius,
-          center.z + (offsetZ / lengthToCenter) * radius,
-        )
-      }
-    }
-    geometry.computeVertexNormals()
-    group.add(new THREE.Mesh(geometry, materials[i % materials.length]))
-  }
-  return group
-}
-
 function buildGroundRocks(count = 46) {
   const geometry = new THREE.IcosahedronGeometry(1, 0)
   const material = new THREE.MeshStandardMaterial({
@@ -682,7 +629,6 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   const { mesh: sky, mat: skyMaterial } = buildSky()
   const stars = buildStars(isSmallScreen ? 260 : 440)
   const hill = buildHill()
-  const roots = buildTreeRoots(isSmallScreen ? 6 : 7)
   const rocks = buildGroundRocks(isSmallScreen ? 30 : 46)
   const groundFlowers = buildGroundFlowers(isSmallScreen ? 36 : 58)
   const mountains = buildMountains()
@@ -693,7 +639,7 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   const foregroundPetals = foregroundRenderer
     ? buildForegroundPetals(isSmallScreen ? 7 : 12)
     : null
-  scene.add(sky, stars, hill, mountains, pool, roots, rocks, groundFlowers, fire.points, valleyLights, petals.mesh)
+  scene.add(sky, stars, hill, mountains, pool, rocks, groundFlowers, fire.points, valleyLights, petals.mesh)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true

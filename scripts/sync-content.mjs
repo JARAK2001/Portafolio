@@ -10,7 +10,7 @@
  * Si la fuente no existe (por ejemplo, al clonar solo el sitio), se conserva
  * la copia local y se avisa sin romper el build.
  */
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
