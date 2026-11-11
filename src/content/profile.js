@@ -235,6 +235,42 @@ export const PROTAGONIST_FLOWERS = [
       guardianesBase.resumen ??
       'Plataforma comunitaria de observación ambiental, memoria y protección de los ríos de Caldono, Cauca.',
   },
+  {
+    id: 'cerebro-voz',
+    flowerIndex: 4,
+    flowerNumber: '05',
+    accentColor: '#a9bcff',
+    glowColor: '#7f9cff',
+    fallbackScreen: { x: 54, y: 37 },
+    nombre: 'Cerebro Voz',
+    preview: 'Memoria de voz para consultar conversaciones y compromisos.',
+    subtitulo: 'Second Brain Voice AI · Memoria conversacional para Android y web',
+    tier: 'alto',
+    tierLabel: 'Flor protagonista',
+    estado: 'Aplicación Android y web',
+    periodo: '2026',
+    rol: 'Diseño de producto y desarrollo de Android, web y backend',
+    demo: 'https://web-production-80df5.up.railway.app/',
+    demoLabel: 'Visitar Cerebro Voz',
+    hasDemo: true,
+    resumen:
+      'Cerebro Voz convierte grabaciones en conversaciones que se pueden consultar. Transcribe el audio, separa a los hablantes y extrae resúmenes y compromisos. Alice permite preguntar sobre lo conversado y regresar al fragmento citado.',
+    problema:
+      'Una grabación conserva lo que se dijo, pero volver a escucharla entera dificulta encontrar una decisión, un acuerdo o la intervención de una persona.',
+    propuesta:
+      'Capturar audio desde Android, organizarlo por conversación y ofrecer búsqueda semántica en la web y la app. Las respuestas de Alice enlazan con las intervenciones y marcas de tiempo que las respaldan.',
+    stack: ['Kotlin', 'Jetpack Compose', 'React', 'TypeScript', 'FastAPI', 'PostgreSQL', 'Qdrant', 'AssemblyAI'],
+    destacados: [
+      'Grabación en segundo plano en Android con una notificación visible durante la captura.',
+      'Biblioteca que reúne las partes de una misma conversación y permite leer la transcripción seguida.',
+      'Alice consulta las conversaciones por fecha, persona o proyecto y cita los fragmentos de origen.',
+    ],
+    evidencia: [
+      { tipo: 'Android', detalle: 'Grabación nativa en Kotlin y pantallas en Jetpack Compose', verificado: true },
+      { tipo: 'Web', detalle: 'Biblioteca de conversaciones y chat con citas consultables', verificado: true },
+      { tipo: 'Backend', detalle: 'API FastAPI y búsqueda vectorial sobre transcripciones en Qdrant', verificado: true },
+    ],
+  },
 ]
 
 export const SECTIONS = [

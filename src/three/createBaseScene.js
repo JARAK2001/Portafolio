@@ -251,9 +251,7 @@ function ridgeProfile(angle, phase) {
   return Math.min(0.98, Math.max(0.3, 0.58 + broad + middle + fine + summits))
 }
 
-function buildMountainRange({ innerRadius, peakRadius, outerRadius, height, baseY, phase, baseColor, peakColor }) {
-  const angularSegments = 224
-  const radialSegments = 16
+function buildMountainRange({ innerRadius, peakRadius, outerRadius, height, baseY, phase, baseColor, peakColor }, angularSegments, radialSegments) {
   const positions = []
   const colors = []
   const indices = []
@@ -307,8 +305,10 @@ function buildMountainRange({ innerRadius, peakRadius, outerRadius, height, base
   }))
 }
 
-function buildMountains() {
+function buildMountains(compact) {
   const group = new THREE.Group()
+  const angularSegments = compact ? 112 : 176
+  const radialSegments = compact ? 8 : 12
   group.add(
     buildMountainRange({
       innerRadius: 14,
@@ -319,7 +319,7 @@ function buildMountains() {
       phase: 0.7,
       baseColor: '#17182d',
       peakColor: '#39345b',
-    }),
+    }, angularSegments, radialSegments),
     buildMountainRange({
       innerRadius: 21,
       peakRadius: 28,
@@ -329,7 +329,7 @@ function buildMountains() {
       phase: 2.1,
       baseColor: '#15172c',
       peakColor: '#4c3d72',
-    }),
+    }, angularSegments, radialSegments),
     buildMountainRange({
       innerRadius: 32,
       peakRadius: 40,
@@ -339,7 +339,7 @@ function buildMountains() {
       phase: 4.2,
       baseColor: '#0c1022',
       peakColor: '#34365f',
-    }),
+    }, angularSegments, radialSegments),
   )
   return group
 }
@@ -474,6 +474,119 @@ function createPetalBreeze(count) {
   return { x, y, update }
 }
 
+// From the mountain ridges to the low filaments on either side of the roots.
+const VALLEY_MIST_BANKS = [
+  { position: [-13, 1.9, -22], size: [17, 2.4], crop: [0.08, 0.77], opacity: 0.15, drift: [1.2, -0.3], speed: 0.047, phase: 0.7, lift: 0.13 },
+  { position: [2, 1.42, -18], size: [14, 1.9], crop: [0.97, -0.72], opacity: 0.13, drift: [-0.9, 0.45], speed: 0.034, phase: 2.3, lift: 0.09 },
+  { position: [14, 1.7, -20], size: [15, 2.7], crop: [0.36, 0.64], opacity: 0.17, drift: [-1.35, -0.35], speed: 0.039, phase: 4.1, lift: 0.16 },
+  { position: [-8.1, 0.85, -8.8], size: [9.3, 2.1], crop: [0.02, 0.58], opacity: 0.29, drift: [0.83, 0.25], speed: 0.068, phase: 0.3, lift: 0.1 },
+  { position: [0.5, 1.1, -11], size: [11.8, 2.5], crop: [0.88, -0.72], opacity: 0.31, drift: [-0.92, 0.12], speed: 0.052, phase: 3.6, lift: 0.17 },
+  { position: [7.6, 0.98, -9.5], size: [8.7, 1.65], crop: [0.31, 0.61], opacity: 0.25, drift: [0.7, -0.48], speed: 0.058, phase: 1.8, lift: 0.07 },
+  { position: [-3.9, 0.42, -3.8], size: [4.6, 0.88], crop: [0.13, 0.56], opacity: 0.17, drift: [0.38, 0.23], speed: 0.079, phase: 5.1, lift: 0.05, response: 0.42 },
+  { position: [3.8, 0.48, -4.1], size: [5.7, 0.98], crop: [0.91, -0.54], opacity: 0.19, drift: [-0.58, -0.27], speed: 0.064, phase: 2.6, lift: 0.07, response: 0.28 },
+]
+
+function buildValleyMist() {
+  const count = VALLEY_MIST_BANKS.length
+  const geometry = new THREE.PlaneGeometry()
+  // The upper 39% of this texture window is transparent. Leave it outside the mesh.
+  const visibleHeight = 0.61
+  geometry.scale(1, visibleHeight, 1).translate(0, (visibleHeight - 1) / 2, 0)
+  const uv = geometry.getAttribute('uv')
+  for (let index = 0; index < uv.count; index++) uv.setY(index, uv.getY(index) * visibleHeight)
+  const crops = new Float32Array(count * 2)
+  const opacity = new THREE.InstancedBufferAttribute(new Float32Array(count), 1)
+  VALLEY_MIST_BANKS.forEach(({ crop }, index) => crops.set(crop, index * 2))
+  geometry.setAttribute('mistCrop', new THREE.InstancedBufferAttribute(crops, 2))
+  geometry.setAttribute('mistOpacity', opacity.setUsage(THREE.DynamicDrawUsage))
+
+  const material = new THREE.MeshBasicMaterial({
+    transparent: true,
+    depthWrite: false,
+    fog: false,
+    toneMapped: false,
+  })
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = `
+      attribute vec2 mistCrop;
+      attribute float mistOpacity;
+      varying vec2 vMistUv;
+      varying float vMistOpacity;
+      ${shader.vertexShader}
+    `.replace('#include <uv_vertex>', `
+      #include <uv_vertex>
+      vMistUv = uv;
+      vMistOpacity = mistOpacity;
+      vMapUv = vec2(mistCrop.x + uv.x * mistCrop.y, 0.03 + uv.y * 0.48);
+    `)
+    shader.fragmentShader = `
+      varying vec2 vMistUv;
+      varying float vMistOpacity;
+      ${shader.fragmentShader}
+    `.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      float edge = smoothstep(0.0, 0.16, vMistUv.x)
+        * (1.0 - smoothstep(0.84, 1.0, vMistUv.x))
+        * smoothstep(0.0, 0.08, vMistUv.y)
+        * (1.0 - smoothstep(0.87, 1.0, vMistUv.y));
+      diffuseColor.a *= vMistOpacity * edge;
+    `)
+  }
+
+  const mesh = new THREE.InstancedMesh(geometry, material, count)
+  mesh.visible = false
+  mesh.frustumCulled = false
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  material.map = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}fog/front.webp`, () => {
+    mesh.visible = true
+  })
+  material.map.colorSpace = THREE.SRGBColorSpace
+
+  const instance = new THREE.Object3D()
+  const view = new THREE.Vector3()
+  const offsets = createPetalBreeze(count)
+  const mistBreeze = { pointer: null, aspect: 1, blend: 1 }
+
+  function update(time, camera, breeze, delta) {
+    if (!mesh.visible) return
+    const pointer = breeze.pointer
+    mistBreeze.pointer = pointer?.active && performance.now() - pointer.movedAt < 180 ? pointer : null
+    mistBreeze.aspect = breeze.aspect
+    mistBreeze.blend = time ? 1 - Math.exp(-3.5 * delta) : 1
+    instance.quaternion.copy(camera.quaternion)
+
+    for (let index = 0; index < count; index++) {
+      const bank = VALLEY_MIST_BANKS[index]
+      const angle = time * bank.speed + bank.phase
+      const drift = Math.sin(angle)
+      const breath = Math.sin(angle * 0.73 + bank.phase)
+      instance.position.set(
+        bank.position[0] + bank.drift[0] * drift,
+        bank.position[1] + bank.lift * Math.sin(angle * 1.27),
+        bank.position[2] + bank.drift[1] * drift,
+      )
+      instance.scale.set(bank.size[0] * (1 + breath * 0.045), bank.size[1] * (1 + breath * 0.07), 1)
+
+      if (bank.response) {
+        view.copy(instance.position).applyMatrix4(camera.matrixWorldInverse)
+        const halfHeight = -view.z * breeze.fovScale
+        const halfWidth = halfHeight * breeze.aspect
+        offsets.update(index, view.x / halfWidth, view.y / halfHeight, mistBreeze)
+        instance.position.addScaledVector(breeze.right, offsets.x[index] * halfWidth * bank.response)
+        instance.position.addScaledVector(breeze.up, offsets.y[index] * halfHeight * bank.response * 0.6)
+      }
+
+      opacity.setX(index, bank.opacity * (1 + breath * 0.14))
+      instance.updateMatrix()
+      mesh.setMatrixAt(index, instance.matrix)
+    }
+    opacity.needsUpdate = true
+    mesh.instanceMatrix.needsUpdate = true
+  }
+
+  return { mesh, update }
+}
+
 function buildPetals(count = 54) {
   const geometry = createPetalGeometry()
   const material = new THREE.MeshStandardMaterial({
@@ -549,21 +662,23 @@ function buildPetals(count = 54) {
 }
 
 function buildForegroundPetals(count = 8) {
-  const scene = new THREE.Scene()
   const mesh = new THREE.InstancedMesh(
     createPetalGeometry(),
     new THREE.MeshBasicMaterial({
       color: '#ffffff',
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.46,
+      opacity: 0.26,
       depthWrite: false,
+      depthTest: false,
+      fog: false,
       toneMapped: false,
     }),
     count,
   )
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
   mesh.frustumCulled = false
+  mesh.renderOrder = 5
   const startX = new Float32Array(count)
   const startY = new Float32Array(count)
   const depth = new Float32Array(count)
@@ -584,25 +699,14 @@ function buildForegroundPetals(count = 8) {
     mesh.setColorAt(i, palette[Math.floor(Math.random() * palette.length)])
   }
   mesh.instanceColor.needsUpdate = true
-  scene.add(mesh)
-
-  const cameraPosition = new THREE.Vector3()
   const forward = new THREE.Vector3()
-  const right = new THREE.Vector3()
-  const up = new THREE.Vector3()
-  const worldPosition = new THREE.Vector3()
   const localZ = new THREE.Vector3(0, 0, 1)
-  const rotation = new THREE.Quaternion()
   const turn = new THREE.Quaternion()
   const instance = new THREE.Object3D()
   const breezeOffsets = createPetalBreeze(count)
 
   function update(time, camera, breeze) {
-    camera.getWorldPosition(cameraPosition)
-    camera.getWorldDirection(forward)
-    right.setFromMatrixColumn(camera.matrixWorld, 0).normalize()
-    up.setFromMatrixColumn(camera.matrixWorld, 1).normalize()
-    rotation.copy(camera.quaternion)
+    forward.setFromMatrixColumn(camera.matrixWorld, 2).negate()
 
     for (let i = 0; i < count; i++) {
       const d = depth[i]
@@ -611,13 +715,12 @@ function buildForegroundPetals(count = 8) {
       const x = startX[i] + Math.sin(time * 0.46 + phase[i]) * 0.11
       const y = (((startY[i] - time * speed[i] + 2.55) % 5.1) + 5.1) % 5.1 - 2.55
       breezeOffsets.update(i, x, y, breeze)
-      worldPosition.copy(cameraPosition)
+      instance.position.copy(camera.position)
         .addScaledVector(forward, d)
-        .addScaledVector(right, (x + breezeOffsets.x[i]) * halfWidth)
-        .addScaledVector(up, (y + breezeOffsets.y[i]) * halfHeight)
+        .addScaledVector(breeze.right, (x + breezeOffsets.x[i]) * halfWidth)
+        .addScaledVector(breeze.up, (y + breezeOffsets.y[i]) * halfHeight)
 
-      instance.position.copy(worldPosition)
-      instance.quaternion.copy(rotation)
+      instance.quaternion.copy(camera.quaternion)
       turn.setFromAxisAngle(localZ, time * spin[i] + phase[i])
       instance.quaternion.multiply(turn)
       instance.scale.setScalar(size[i])
@@ -627,7 +730,7 @@ function buildForegroundPetals(count = 8) {
     mesh.instanceMatrix.needsUpdate = true
   }
 
-  return { scene, update }
+  return { mesh, update }
 }
 
 const PROTAGONIST_FLOWER_SPECS = [
@@ -658,6 +761,13 @@ const PROTAGONIST_FLOWER_SPECS = [
     petalColor: '#72efdd',
     emissiveColor: '#48bfe3',
     coreColor: '#d8f3dc',
+  },
+  {
+    id: 'cerebro-voz',
+    position: [-0.548, 3.583, 0.86],
+    petalColor: '#a9bcff',
+    emissiveColor: '#6688f0',
+    coreColor: '#e4edff',
   },
 ]
 
@@ -921,26 +1031,12 @@ export function disposeObjectResources(rootObject) {
   }
 }
 
-export function createBaseScene(canvas, foregroundCanvas = null) {
+export function createBaseScene(canvas, showForegroundPetals = false) {
   const isSmallScreen = window.matchMedia?.('(max-width: 700px)').matches ?? false
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1.35 : 1.65)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-  renderer.setPixelRatio(pixelRatio)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.08
-
-  let foregroundRenderer = null
-  if (foregroundCanvas) {
-    try {
-      foregroundRenderer = new THREE.WebGLRenderer({ canvas: foregroundCanvas, alpha: true, antialias: true })
-      foregroundRenderer.setPixelRatio(Math.min(pixelRatio, 0.85))
-      foregroundRenderer.outputColorSpace = THREE.SRGBColorSpace
-      foregroundRenderer.setClearColor(0x000000, 0)
-    } catch (err) {
-      console.warn('[Portafolio] No se pudo crear la capa frontal de pétalos:', err)
-    }
-  }
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.Fog('#151428', 30, 78)
@@ -964,13 +1060,14 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   const hill = buildHill()
   const rocks = buildGroundRocks(isSmallScreen ? 30 : 46)
   const groundFlowers = buildGroundFlowers(isSmallScreen ? 36 : 58)
-  const mountains = buildMountains()
+  const mountains = buildMountains(isSmallScreen)
   const pool = buildLightPool()
   const fire = buildFireflies(isSmallScreen ? 64 : 100)
   const valleyLights = buildValleyLights(isSmallScreen ? 72 : 120)
+  const valleyMist = buildValleyMist()
   const petals = buildPetals(isSmallScreen ? 30 : 54)
   const protagonistFlowers = buildProtagonistFlowers()
-  const foregroundPetals = foregroundRenderer
+  const foregroundPetals = showForegroundPetals
     ? buildForegroundPetals(isSmallScreen ? 5 : 8)
     : null
   scene.add(
@@ -983,9 +1080,11 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
     groundFlowers,
     fire.points,
     valleyLights,
+    valleyMist.mesh,
     petals.mesh,
     protagonistFlowers.group,
   )
+  if (foregroundPetals) scene.add(foregroundPetals.mesh)
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
@@ -1004,8 +1103,10 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
     if (width === lastWidth && height === lastHeight) return false
     lastWidth = width
     lastHeight = height
-    renderer.setSize(width, height, false)
-    foregroundRenderer?.setSize(width, height, false)
+    const compact = width <= 700
+    const pixelBudget = compact ? 520000 : 1600000
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, compact ? 1.1 : 1.35, Math.sqrt(pixelBudget / (width * height)))
+    renderer.setDrawingBufferSize(width, height, pixelRatio)
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     return true
@@ -1027,6 +1128,7 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
     breeze.blend = time ? 1 - Math.exp(-9 * Math.min(0.05, Math.max(0, delta))) : 1
     breeze.right.setFromMatrixColumn(camera.matrixWorld, 0)
     breeze.up.setFromMatrixColumn(camera.matrixWorld, 1)
+    valleyMist.update(time, camera, breeze, delta)
     petals.update(time, camera, breeze)
     protagonistFlowers.update(time, camera, flowerInteraction)
     foregroundPetals?.update(time, camera, breeze)
@@ -1044,12 +1146,6 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
     controls.dispose()
     disposeObjectResources(scene)
     scene.clear()
-    if (foregroundPetals) {
-      disposeObjectResources(foregroundPetals.scene)
-      foregroundPetals.scene.clear()
-    }
-    foregroundRenderer?.renderLists?.dispose?.()
-    foregroundRenderer?.dispose()
     renderer.renderLists?.dispose?.()
     renderer.dispose()
   }
@@ -1059,8 +1155,6 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
     scene,
     camera,
     controls,
-    foregroundRenderer,
-    foregroundScene: foregroundPetals?.scene,
     resize,
     tick,
     dispose,

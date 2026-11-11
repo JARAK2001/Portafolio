@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import TreeViewer from './components/TreeViewer.jsx'
+import CloudIntro from './components/CloudIntro.jsx'
 import { PROFILE, SECTIONS, TIER_META } from './content/profile.js'
 import { STOP_IDS } from './three/cameraJourney.js'
 import { useScrollJourney } from './useScrollJourney.js'
@@ -121,7 +122,9 @@ function ProjectDialog({ project: mainProject, onClose }) {
             <div><dt>Periodo</dt><dd>{project.periodo}</dd></div>
             <div><dt>Rol</dt><dd>{project.rol}</dd></div>
             <div><dt>Nivel</dt><dd>{project.tierLabel}</dd></div>
-            <div><dt>Puntaje</dt><dd>{Number(project.puntaje).toFixed(2)} / 5</dd></div>
+            {project.puntaje != null && (
+              <div><dt>Puntaje</dt><dd>{Number(project.puntaje).toFixed(2)} / 5</dd></div>
+            )}
           </dl>
 
           <section className="dialog-section">
@@ -185,7 +188,7 @@ function ProjectDialog({ project: mainProject, onClose }) {
           <div className="dialog-actions">
             {project.hasDemo && (
               <a className="btn solid" href={project.demo} target="_blank" rel="noreferrer noopener">
-                Abrir demo <span aria-hidden="true">↗</span>
+                {project.demoLabel ?? 'Abrir demo'} <span aria-hidden="true">↗</span>
               </a>
             )}
             {project.hasRepo && (
@@ -338,7 +341,7 @@ function FloresSection({ section, onSyncFlowerState, inView }) {
           className={`flores-canopy-map ${hoveredFlowerIndex >= 0 && hoveredFlowerIndex !== activeFlowerIndex ? 'has-preview' : ''}`}
           hidden={!inView}
           role="group"
-          aria-label="Cuatro flores interactivas en la copa del guayacán"
+          aria-label="Flores interactivas en la copa del guayacán"
         >
           {protagonists.map((flower, fIndex) => {
             const isSelected = activeFlowerIndex === fIndex
@@ -424,7 +427,7 @@ function SemillasSection({ section }) {
 
         <div className="semillas-links">
           <a className="editorial-trigger-btn" href="#flores">
-            <span>Explorar las cuatro flores</span>
+            <span>Explorar los proyectos</span>
             <span aria-hidden="true">↑</span>
           </a>
           <a className="semillas-secondary-link" href="#inicio">
@@ -451,6 +454,10 @@ export default function App() {
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
   )
   const [menuOpen, setMenuOpen] = useState(false)
+  const [introPhase, setIntroPhase] = useState('loading')
+  const introLocked = introPhase === 'loading' || introPhase === 'ready'
+  const onSceneReady = useCallback(() => setIntroPhase('ready'), [setIntroPhase])
+  const onSceneError = useCallback(() => setIntroPhase('error'), [setIntroPhase])
   const { journeyRef, active } = useScrollJourney(reduceMotion)
   const flowerStateRef = useRef({ activeIndex: -1, hoveredIndex: -1, stageEl: null })
   const syncFlowerState = useCallback((patch) => {
@@ -471,9 +478,17 @@ export default function App() {
 
   return (
     <>
-      <TreeViewer journeyRef={journeyRef} flowerStateRef={flowerStateRef} calm={reduceMotion} chromeless />
+      <TreeViewer
+        journeyRef={journeyRef}
+        flowerStateRef={flowerStateRef}
+        calm={reduceMotion}
+        onSceneReady={onSceneReady}
+        onSceneError={onSceneError}
+        chromeless
+      />
+      <CloudIntro phase={introPhase} setPhase={setIntroPhase} calm={reduceMotion} />
 
-      <nav className="topnav" aria-label="Navegación principal">
+      <nav className="topnav" aria-label="Navegación principal" inert={introLocked}>
         <a className="brand" href="#inicio" onClick={() => setMenuOpen(false)}>
           <span className="brand-mark" aria-hidden="true"><i /></span>
           <span>{PROFILE.name}</span>
@@ -511,7 +526,7 @@ export default function App() {
         </div>
       </nav>
 
-      <aside className="rail" aria-label="Progreso del recorrido">
+      <aside className="rail" aria-label="Progreso del recorrido" inert={introLocked}>
         <div className="rail-line" />
         <div className="rail-fill" />
         <div className="rail-leaf" aria-hidden="true">✳</div>
@@ -531,7 +546,7 @@ export default function App() {
         })}
       </aside>
 
-      <main className="content">
+      <main className="content" inert={introLocked}>
         <header id="inicio" data-spy className="hero" aria-labelledby="hero-title">
           <div data-scene="hero" className="hero-text">
             <p className="eyebrow">
@@ -557,7 +572,7 @@ export default function App() {
             key={section.id}
             section={section}
             onSyncFlowerState={syncFlowerState}
-            inView={active === section.id}
+            inView={active === section.id && (introPhase === 'revealing' || introPhase === 'complete')}
           />
         ))}
 

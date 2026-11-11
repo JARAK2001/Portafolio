@@ -7,9 +7,8 @@ import { loadTreeModel } from '../three/loadTreeModel'
  * Modo fondo fijo: la cámara sigue el viaje del scroll (journeyRef),
  * con interpolación suave.
  */
-export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = false, chromeless = false }) {
+export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = false, chromeless = false, onSceneReady, onSceneError }) {
   const canvasRef = useRef(null)
-  const foregroundCanvasRef = useRef(null)
   const containerRef = useRef(null)
   const calmRef = useRef(calm)
   const [status, setStatus] = useState('Cargando modelo…')
@@ -23,37 +22,43 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const foregroundCanvas = chromeless ? foregroundCanvasRef.current : null
     const container = containerRef.current
     if (!canvas || !container) return
 
+    let disposed = false
     let sceneApi
     try {
-      sceneApi = createBaseScene(canvas, foregroundCanvas)
+      sceneApi = createBaseScene(canvas, chromeless)
     } catch (err) {
-      console.warn('[Portafolio] WebGL no está disponible:', err)
-      setError('La escena 3D no está disponible en este dispositivo.')
-      setStatus('Escena simplificada')
-      return () => {}
+      queueMicrotask(() => {
+        if (disposed) return
+        console.warn('[Portafolio] WebGL no está disponible:', err)
+        setError('La escena 3D no está disponible en este dispositivo.')
+        setStatus('Escena simplificada')
+        onSceneError?.()
+      })
+      return () => { disposed = true }
     }
 
-    const { renderer, scene, camera, controls, foregroundRenderer, foregroundScene, resize, tick, dispose } = sceneApi
+    const { renderer, scene, camera, controls, resize, tick, dispose } = sceneApi
     let root = null
     let rafId = null
-    let disposed = false
+    let contextLost = false
+    let sceneReady = false
     let last = null
     let time = performance.now() / 1000
     let lastFpsUpdate = 0
     let ema = 60
     let viewportWidth = 1
     let viewportHeight = 1
-    const pointer = { x: 0, y: 0, active: false }
+    const pointer = { x: 0, y: 0, active: false, movedAt: 0 }
 
     const onPointerMove = (event) => {
       if (event.pointerType !== 'mouse' || calmRef.current) return
       pointer.x = event.clientX / viewportWidth * 2 - 1
       pointer.y = 1 - event.clientY / viewportHeight * 2
       pointer.active = true
+      pointer.movedAt = performance.now()
     }
     const resetPointer = () => { pointer.active = false }
     const onPointerOut = (event) => {
@@ -66,7 +71,7 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
     }
 
     const scheduleFrame = () => {
-      if (disposed || document.hidden || rafId !== null) return
+      if (disposed || contextLost || document.hidden || rafId !== null) return
       rafId = requestAnimationFrame(loop)
     }
 
@@ -86,7 +91,20 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
         scheduleFrame()
       }
     }
+    const onContextLost = () => {
+      contextLost = true
+      sceneReady = false
+      cancelFrame()
+      onSceneError?.()
+    }
+    const onContextRestored = () => {
+      contextLost = false
+      last = null
+      scheduleFrame()
+    }
     document.addEventListener('visibilitychange', onVisibilityChange)
+    canvas.addEventListener('webglcontextlost', onContextLost)
+    canvas.addEventListener('webglcontextrestored', onContextRestored)
 
     const fit = () => {
       if (disposed) return
@@ -103,7 +121,7 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
 
     function loop(now) {
       rafId = null
-      if (disposed || document.hidden) return
+      if (disposed || contextLost || document.hidden) return
       const dt = last === null ? 1000 / 60 : now - last
       last = now
       const frameSeconds = Math.min(dt / 1000, 0.05)
@@ -124,7 +142,11 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
       if (calmRef.current) resetPointer()
       tick?.(calmRef.current ? 0 : time, flowerStateRef?.current, pointer, frameSeconds)
       renderer.render(scene, camera)
-      if (foregroundRenderer && foregroundScene) foregroundRenderer.render(foregroundScene, camera)
+      if (!sceneReady && root?.parent === scene && !renderer.getContext().isContextLost()) {
+        sceneReady = true
+        if (!chromeless) setStatus('Árbol cargado correctamente')
+        onSceneReady?.()
+      }
       scheduleFrame()
     }
 
@@ -145,8 +167,8 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
           }
           return
         }
+        if (!stats.meshCount) throw new Error('El modelo no contiene una malla visible.')
         root = stats.root
-        if (!chromeless) setStatus('Árbol cargado correctamente')
         scheduleFrame()
       })
       .catch((err) => {
@@ -154,6 +176,7 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
         console.error('[Etapa2] Error cargando GLB:', err)
         setError('No se pudo cargar /models/tree.glb. Revisa que el archivo exista en public/models/.')
         setStatus('Error de carga')
+        onSceneError?.()
       })
 
     // Bucle de render incluso antes de cargar, para ver fondo y rejilla.
@@ -162,6 +185,8 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
     return () => {
       disposed = true
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      canvas.removeEventListener('webglcontextlost', onContextLost)
+      canvas.removeEventListener('webglcontextrestored', onContextRestored)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerout', onPointerOut)
       window.removeEventListener('blur', resetPointer)
@@ -173,17 +198,14 @@ export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = f
         root = null
       }
     }
-  }, [journeyRef, chromeless, flowerStateRef])
+  }, [journeyRef, chromeless, flowerStateRef, onSceneReady, onSceneError])
 
   if (chromeless) {
     return (
-      <>
-        <div ref={containerRef} className="viewer-canvas-box fixed" aria-hidden="true">
-          <canvas ref={canvasRef} className="viewer-canvas" />
-          <div className="viewer-vignette" />
-        </div>
-        <canvas ref={foregroundCanvasRef} className="viewer-foreground-canvas" aria-hidden="true" />
-      </>
+      <div ref={containerRef} className="viewer-canvas-box fixed" aria-hidden="true">
+        <canvas ref={canvasRef} className="viewer-canvas" />
+        <div className="viewer-vignette" />
+      </div>
     )
   }
 
