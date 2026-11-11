@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 /**
@@ -449,6 +450,30 @@ function createPetalGeometry() {
   return new THREE.ShapeGeometry(shape, 6)
 }
 
+function createPetalBreeze(count) {
+  const x = new Float32Array(count)
+  const y = new Float32Array(count)
+
+  function update(index, screenX, screenY, breeze) {
+    let targetX = 0
+    let targetY = 0
+    if (breeze.pointer?.active) {
+      const dx = (screenX - breeze.pointer.x) * breeze.aspect
+      const dy = screenY - breeze.pointer.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (distance < 0.36) {
+        const force = (1 - distance / 0.36) ** 2 * 0.22 / Math.max(0.035, distance)
+        targetX = dx * force / breeze.aspect
+        targetY = dy * force
+      }
+    }
+    x[index] += (targetX - x[index]) * breeze.blend
+    y[index] += (targetY - y[index]) * breeze.blend
+  }
+
+  return { x, y, update }
+}
+
 function buildPetals(count = 54) {
   const geometry = createPetalGeometry()
   const material = new THREE.MeshStandardMaterial({
@@ -487,7 +512,9 @@ function buildPetals(count = 54) {
   mesh.instanceColor.needsUpdate = true
 
   const object = new THREE.Object3D()
-  function update(time) {
+  const view = new THREE.Vector3()
+  const breezeOffsets = createPetalBreeze(count)
+  function update(time, camera, breeze) {
     for (let i = 0; i < count; i++) {
       const fall = (time * speed[i] + phase[i]) % 1
       object.position.set(
@@ -495,6 +522,20 @@ function buildPetals(count = 54) {
         0.45 + ((baseY[i] - 0.45 - fall * 3.5 + 7.0) % 4.8),
         baseZ[i] + Math.cos(time * 0.31 + phase[i] * 6) * 0.38,
       )
+      if (breeze) {
+        let depth = 0
+        if (breeze.pointer?.active || Math.abs(breezeOffsets.x[i]) + Math.abs(breezeOffsets.y[i]) > 0.001) {
+          view.copy(object.position).applyMatrix4(camera.matrixWorldInverse)
+          depth = -view.z
+        }
+        const halfHeight = depth * breeze.fovScale
+        const halfWidth = halfHeight * breeze.aspect
+        breezeOffsets.update(i, depth > 0 ? view.x / halfWidth : 10, depth > 0 ? view.y / halfHeight : 10, breeze)
+        if (depth > 0) {
+          object.position.addScaledVector(breeze.right, breezeOffsets.x[i] * halfWidth)
+          object.position.addScaledVector(breeze.up, breezeOffsets.y[i] * halfHeight)
+        }
+      }
       object.rotation.set(tilt[i] + Math.sin(time * 0.7 + phase[i] * 5) * 0.28, 0, phase[i] * Math.PI * 2 + time * 0.2)
       object.scale.setScalar(scale[i])
       object.updateMatrix()
@@ -507,7 +548,7 @@ function buildPetals(count = 54) {
   return { mesh, update }
 }
 
-function buildForegroundPetals(count = 12) {
+function buildForegroundPetals(count = 8) {
   const scene = new THREE.Scene()
   const mesh = new THREE.InstancedMesh(
     createPetalGeometry(),
@@ -515,7 +556,7 @@ function buildForegroundPetals(count = 12) {
       color: '#ffffff',
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.46,
       depthWrite: false,
       toneMapped: false,
     }),
@@ -535,9 +576,9 @@ function buildForegroundPetals(count = 12) {
   for (let i = 0; i < count; i++) {
     startX[i] = (Math.random() * 2 - 1) * 1.24
     startY[i] = (Math.random() * 2 - 1) * 2.45
-    depth[i] = 1.65 + Math.random() * 1.35
-    speed[i] = 0.28 + Math.random() * 0.28
-    size[i] = 0.15 + Math.random() * 0.12
+    depth[i] = 1.85 + Math.random() * 1.45
+    speed[i] = 0.24 + Math.random() * 0.24
+    size[i] = 0.085 + Math.random() * 0.065
     phase[i] = Math.random() * Math.PI * 2
     spin[i] = (Math.random() * 2 - 1) * 0.8
     mesh.setColorAt(i, palette[Math.floor(Math.random() * palette.length)])
@@ -554,9 +595,9 @@ function buildForegroundPetals(count = 12) {
   const rotation = new THREE.Quaternion()
   const turn = new THREE.Quaternion()
   const instance = new THREE.Object3D()
+  const breezeOffsets = createPetalBreeze(count)
 
-  function update(time, camera) {
-    camera.updateMatrixWorld()
+  function update(time, camera, breeze) {
     camera.getWorldPosition(cameraPosition)
     camera.getWorldDirection(forward)
     right.setFromMatrixColumn(camera.matrixWorld, 0).normalize()
@@ -565,14 +606,15 @@ function buildForegroundPetals(count = 12) {
 
     for (let i = 0; i < count; i++) {
       const d = depth[i]
-      const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * d
+      const halfHeight = breeze.fovScale * d
       const halfWidth = halfHeight * camera.aspect
       const x = startX[i] + Math.sin(time * 0.46 + phase[i]) * 0.11
       const y = (((startY[i] - time * speed[i] + 2.55) % 5.1) + 5.1) % 5.1 - 2.55
+      breezeOffsets.update(i, x, y, breeze)
       worldPosition.copy(cameraPosition)
         .addScaledVector(forward, d)
-        .addScaledVector(right, x * halfWidth)
-        .addScaledVector(up, y * halfHeight)
+        .addScaledVector(right, (x + breezeOffsets.x[i]) * halfWidth)
+        .addScaledVector(up, (y + breezeOffsets.y[i]) * halfHeight)
 
       instance.position.copy(worldPosition)
       instance.quaternion.copy(rotation)
@@ -588,6 +630,297 @@ function buildForegroundPetals(count = 12) {
   return { scene, update }
 }
 
+const PROTAGONIST_FLOWER_SPECS = [
+  {
+    id: 'gxnova',
+    position: [-0.53, 4.04, 0.48],
+    petalColor: '#ffe4a0',
+    emissiveColor: '#ffb752',
+    coreColor: '#fff3b0',
+  },
+  {
+    id: 'arami',
+    position: [1.862, 2.614, 0.279],
+    petalColor: '#ff70a6',
+    emissiveColor: '#ff477e',
+    coreColor: '#ffe5ec',
+  },
+  {
+    id: 'laboratorios-interactivos',
+    position: [1.295, 3.887, 0.035],
+    petalColor: '#c77dff',
+    emissiveColor: '#9d4edd',
+    coreColor: '#f3d5ff',
+  },
+  {
+    id: 'guardianes',
+    position: [1.904, 3.387, 0.193],
+    petalColor: '#72efdd',
+    emissiveColor: '#48bfe3',
+    coreColor: '#d8f3dc',
+  },
+]
+
+function buildProtagonistFlowers() {
+  const group = new THREE.Group()
+  group.name = 'ProtagonistFlowers'
+
+  const sharedPetalGeo = createPetalGeometry()
+  const sharedCoreGeo = new THREE.SphereGeometry(0.052, 10, 8)
+
+  const glowCanvas = document.createElement('canvas')
+  glowCanvas.width = glowCanvas.height = 128
+  const ctx = glowCanvas.getContext('2d')
+  const grad = ctx.createRadialGradient(64, 64, 4, 64, 64, 62)
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)')
+  grad.addColorStop(0.32, 'rgba(255, 235, 255, 0.48)')
+  grad.addColorStop(0.7, 'rgba(199, 181, 255, 0.12)')
+  grad.addColorStop(1, 'rgba(199, 181, 255, 0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, 128, 128)
+  const sharedGlowTex = new THREE.CanvasTexture(glowCanvas)
+
+  const accentLight = new THREE.PointLight('#ffd166', 0, 2.8, 1.8)
+  group.add(accentLight)
+
+  const nodes = PROTAGONIST_FLOWER_SPECS.map((spec, index) => {
+    const flowerGroup = new THREE.Group()
+    flowerGroup.position.set(spec.position[0], spec.position[1], spec.position[2])
+
+    const blossom = new THREE.Group()
+    const petalMat = new THREE.MeshStandardMaterial({
+      color: spec.petalColor,
+      emissive: spec.emissiveColor,
+      emissiveIntensity: 0.72,
+      roughness: 0.38,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.96,
+    })
+
+    const petalCount = 6
+    for (let p = 0; p < petalCount; p++) {
+      const angle = (p / petalCount) * Math.PI * 2
+      const petal = new THREE.Mesh(sharedPetalGeo, petalMat)
+      petal.rotation.z = angle
+      petal.rotation.x = 0.42
+      petal.scale.setScalar(0.56)
+      blossom.add(petal)
+    }
+
+    const coreMat = new THREE.MeshStandardMaterial({
+      color: spec.coreColor,
+      emissive: spec.petalColor,
+      emissiveIntensity: 1.15,
+      roughness: 0.25,
+    })
+    const core = new THREE.Mesh(sharedCoreGeo, coreMat)
+    blossom.add(core)
+
+    const haloMat = new THREE.SpriteMaterial({
+      map: sharedGlowTex,
+      color: spec.petalColor,
+      transparent: true,
+      opacity: 0.52,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    const halo = new THREE.Sprite(haloMat)
+    halo.scale.setScalar(0.52)
+
+    flowerGroup.add(blossom, halo)
+    group.add(flowerGroup)
+
+    return {
+      index,
+      id: spec.id,
+      worldPos: new THREE.Vector3(spec.position[0], spec.position[1], spec.position[2]),
+      color: new THREE.Color(spec.petalColor),
+      flowerGroup,
+      blossom,
+      petalMat,
+      coreMat,
+      halo,
+      haloMat,
+      emphasis: 0,
+    }
+  })
+
+  const projected = new THREE.Vector3()
+  let stageBounds
+  let stageScroll
+  let stageWidth
+  let stageHeight
+  let previousStage
+
+  async function loadGeometry(shouldAbort) {
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/guayacan-blossom.glb`)
+    const source = gltf.scene.children[0]
+    const geometry = !shouldAbort() && source?.isMesh ? source.geometry.clone() : null
+    disposeObjectResources(gltf.scene)
+    if (!geometry) return
+
+    geometry.center()
+    geometry.computeVertexNormals()
+    geometry.scale(0.40, 0.40, 0.40)
+    for (const node of nodes) {
+      node.blossom.clear()
+      node.coreMat.dispose()
+      node.coreMat = null
+      node.petalMat.transparent = false
+      node.petalMat.needsUpdate = true
+      node.blossom.add(new THREE.Mesh(geometry, node.petalMat))
+    }
+    sharedPetalGeo.dispose()
+    sharedCoreGeo.dispose()
+  }
+
+  function update(time, camera, interaction = null) {
+    const activeIndex = interaction?.activeIndex ?? 0
+    const hoveredIndex = interaction?.hoveredIndex ?? -1
+    const stageEl = interaction?.stageEl ?? null
+    const height = window.innerHeight
+    const width = height * camera.aspect
+    const scroll = window.scrollY
+    const showMarkers = stageEl && width > 900 && interaction.enabled
+    if (showMarkers && (stageEl !== previousStage || scroll !== stageScroll || width !== stageWidth || height !== stageHeight)) {
+      stageBounds = stageEl.getBoundingClientRect()
+      previousStage = stageEl
+      stageScroll = scroll
+      stageWidth = width
+      stageHeight = height
+    }
+
+    let lightTargetNode = null
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i]
+      const isHovered = hoveredIndex === i
+      const isSelected = activeIndex === i
+      const isDimmed = hoveredIndex >= 0 ? !isHovered : !isSelected
+      const targetEmphasis = isHovered ? 1.0 : isSelected ? 0.74 : 0.19
+      node.emphasis += (targetEmphasis - node.emphasis) * 0.14
+
+      const pulse = time > 0 ? Math.sin(time * 2.1 + i * 1.4) * (isDimmed ? 0.02 : 0.055) : 0
+      const scale = 0.78 + node.emphasis * 0.54 + pulse
+      node.blossom.scale.setScalar(scale)
+      node.blossom.lookAt(camera.position)
+
+      node.petalMat.emissiveIntensity = 0.26 + node.emphasis * 1.48
+      node.petalMat.opacity = 0.68 + node.emphasis * 0.3
+      if (node.coreMat) node.coreMat.emissiveIntensity = 0.42 + node.emphasis * 1.75
+      node.halo.scale.setScalar(0.32 + node.emphasis * 0.6 + pulse * 1.2)
+      node.haloMat.opacity = 0.14 + node.emphasis * 0.72
+
+      if (isHovered || (hoveredIndex === -1 && isSelected)) {
+        lightTargetNode = node
+      }
+
+      const marker = showMarkers ? interaction.flowerNodes?.[i] : null
+      if (marker && stageBounds) {
+        projected.copy(node.worldPos).project(camera)
+        const x = Math.round((projected.x + 1) * width / 2 - stageBounds.left)
+        const y = Math.round((1 - projected.y) * height / 2 - stageBounds.top)
+        if (node.marker !== marker || node.markerX !== x || node.markerY !== y) {
+          node.marker = marker
+          node.markerX = x
+          node.markerY = y
+          marker.style.setProperty('--projected-x', `${x}px`)
+          marker.style.setProperty('--projected-y', `${y}px`)
+        }
+      }
+    }
+
+    if (lightTargetNode) {
+      accentLight.position.lerp(lightTargetNode.worldPos, 0.18)
+      accentLight.color.lerp(lightTargetNode.color, 0.22)
+      const targetIntensity = hoveredIndex >= 0 ? 3.8 : 2.2
+      accentLight.intensity += (targetIntensity - accentLight.intensity) * 0.16
+    } else {
+      accentLight.intensity *= 0.88
+    }
+  }
+
+  return { group, update, loadGeometry }
+}
+
+const TEXTURE_MAP_KEYS = [
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'emissiveMap',
+  'aoMap',
+  'alphaMap',
+  'bumpMap',
+  'displacementMap',
+  'lightMap',
+  'specularMap',
+  'clearcoatMap',
+  'clearcoatNormalMap',
+  'clearcoatRoughnessMap',
+  'sheenColorMap',
+  'sheenRoughnessMap',
+  'transmissionMap',
+  'thicknessMap',
+  'anisotropyMap',
+  'iridescenceMap',
+  'iridescenceThicknessMap',
+  'envMap',
+]
+
+export function disposeObjectResources(rootObject) {
+  if (!rootObject) return
+  const disposableObjects = new Set()
+  const geometries = new Set()
+  const materials = new Set()
+  const textures = new Set()
+
+  rootObject.traverse((object) => {
+    if (object !== rootObject && typeof object.dispose === 'function') {
+      disposableObjects.add(object)
+    } else if (object === rootObject && !object.isScene && typeof object.dispose === 'function') {
+      disposableObjects.add(object)
+    }
+    if (object.geometry) {
+      geometries.add(object.geometry)
+    }
+    if (!object.material) return
+    const objectMaterials = Array.isArray(object.material) ? object.material : [object.material]
+    for (const material of objectMaterials) {
+      if (!material) continue
+      materials.add(material)
+      for (const key of TEXTURE_MAP_KEYS) {
+        const tex = material[key]
+        if (tex && tex.isTexture) {
+          textures.add(tex)
+        }
+      }
+      if (material.uniforms) {
+        for (const uniform of Object.values(material.uniforms)) {
+          if (uniform?.value?.isTexture) {
+            textures.add(uniform.value)
+          }
+        }
+      }
+    }
+  })
+
+  for (const object of disposableObjects) {
+    object.dispose()
+  }
+  for (const texture of textures) {
+    texture.dispose()
+  }
+  for (const material of materials) {
+    material.dispose()
+  }
+  for (const geometry of geometries) {
+    geometry.dispose()
+  }
+}
+
 export function createBaseScene(canvas, foregroundCanvas = null) {
   const isSmallScreen = window.matchMedia?.('(max-width: 700px)').matches ?? false
   const pixelRatio = Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1.35 : 1.65)
@@ -601,7 +934,7 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   if (foregroundCanvas) {
     try {
       foregroundRenderer = new THREE.WebGLRenderer({ canvas: foregroundCanvas, alpha: true, antialias: true })
-      foregroundRenderer.setPixelRatio(pixelRatio)
+      foregroundRenderer.setPixelRatio(Math.min(pixelRatio, 0.85))
       foregroundRenderer.outputColorSpace = THREE.SRGBColorSpace
       foregroundRenderer.setClearColor(0x000000, 0)
     } catch (err) {
@@ -636,10 +969,23 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   const fire = buildFireflies(isSmallScreen ? 64 : 100)
   const valleyLights = buildValleyLights(isSmallScreen ? 72 : 120)
   const petals = buildPetals(isSmallScreen ? 30 : 54)
+  const protagonistFlowers = buildProtagonistFlowers()
   const foregroundPetals = foregroundRenderer
-    ? buildForegroundPetals(isSmallScreen ? 7 : 12)
+    ? buildForegroundPetals(isSmallScreen ? 5 : 8)
     : null
-  scene.add(sky, stars, hill, mountains, pool, rocks, groundFlowers, fire.points, valleyLights, petals.mesh)
+  scene.add(
+    sky,
+    stars,
+    hill,
+    mountains,
+    pool,
+    rocks,
+    groundFlowers,
+    fire.points,
+    valleyLights,
+    petals.mesh,
+    protagonistFlowers.group,
+  )
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
@@ -651,14 +997,23 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
   controls.enablePan = false
   controls.autoRotate = false
 
+  let lastWidth = 0
+  let lastHeight = 0
+
   function resize(width, height) {
+    if (width === lastWidth && height === lastHeight) return false
+    lastWidth = width
+    lastHeight = height
     renderer.setSize(width, height, false)
     foregroundRenderer?.setSize(width, height, false)
     camera.aspect = width / height
     camera.updateProjectionMatrix()
+    return true
   }
 
-  function tick(time) {
+  const breeze = { right: new THREE.Vector3(), up: new THREE.Vector3(), pointer: null, aspect: 1, blend: 1, fovScale: Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) }
+
+  function tick(time, flowerInteraction = null, pointer = null, delta = 0) {
     skyMaterial.uniforms.uTime.value = time
     const positions = fire.points.geometry.attributes.position
     for (let i = 0; i < fire.count; i++) {
@@ -666,28 +1021,36 @@ export function createBaseScene(canvas, foregroundCanvas = null) {
       positions.array[i * 3 + 1] = fire.base[i * 3 + 1] + Math.sin(time * 0.7 + fire.phase[i]) * 0.22
     }
     positions.needsUpdate = true
-    petals.update(time)
-    foregroundPetals?.update(time, camera)
+    camera.updateMatrixWorld()
+    breeze.pointer = pointer
+    breeze.aspect = camera.aspect
+    breeze.blend = time ? 1 - Math.exp(-9 * Math.min(0.05, Math.max(0, delta))) : 1
+    breeze.right.setFromMatrixColumn(camera.matrixWorld, 0)
+    breeze.up.setFromMatrixColumn(camera.matrixWorld, 1)
+    petals.update(time, camera, breeze)
+    protagonistFlowers.update(time, camera, flowerInteraction)
+    foregroundPetals?.update(time, camera, breeze)
     pool.material.opacity = 0.38 + 0.06 * Math.sin(time * 0.72)
   }
 
+  let isDisposed = false
+  protagonistFlowers.loadGeometry(() => isDisposed).catch(() => {
+    // Las flores de geometría local siguen visibles si el archivo no carga.
+  })
+
   function dispose() {
+    if (isDisposed) return
+    isDisposed = true
     controls.dispose()
-    scene.traverse((object) => {
-      if (object.geometry) object.geometry.dispose()
-      const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : []
-      materials.forEach((material) => {
-        if (material.map) material.map.dispose()
-        material.dispose()
-      })
-    })
+    disposeObjectResources(scene)
+    scene.clear()
     if (foregroundPetals) {
-      foregroundPetals.scene.traverse((object) => {
-        if (object.geometry) object.geometry.dispose()
-        if (object.material) object.material.dispose()
-      })
+      disposeObjectResources(foregroundPetals.scene)
+      foregroundPetals.scene.clear()
     }
+    foregroundRenderer?.renderLists?.dispose?.()
     foregroundRenderer?.dispose()
+    renderer.renderLists?.dispose?.()
     renderer.dispose()
   }
 

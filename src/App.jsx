@@ -1,86 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import TreeViewer from './components/TreeViewer.jsx'
-import { PROFILE, PROJECT_STATS, SECTIONS, TIER_META } from './content/profile.js'
-import { STOP_IDS, getJourney } from './three/cameraJourney.js'
+import { PROFILE, SECTIONS, TIER_META } from './content/profile.js'
+import { STOP_IDS } from './three/cameraJourney.js'
+import { useScrollJourney } from './useScrollJourney.js'
 import './App.css'
 
 const NAV = [{ id: 'inicio', label: 'Inicio' }, ...SECTIONS.map((section) => ({ id: section.id, label: section.nav }))]
-
-const FILTERS = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'alto', label: TIER_META.alto.short },
-  { id: 'medio', label: TIER_META.medio.short },
-  { id: 'bajo', label: TIER_META.bajo.short },
-]
-
-/**
- * Progreso del viaje 3D alineado a las secciones reales.
- *
- * Antes se repartía el scroll total en partes iguales; con una sección de
- * proyectos más alta que las demás, la cámara se desincronizaba. Ahora cada
- * sección ocupa un tramo del recorrido y la cámara llega a su parada cuando
- * esa sección entra en pantalla.
- */
-function journeyProgressForScroll() {
-  const sections = Array.from(document.querySelectorAll('[data-spy]'))
-  if (sections.length < 2) return 0
-
-  const tops = sections.map((section) => section.getBoundingClientRect().top + window.scrollY)
-  const y = window.scrollY
-  if (y <= tops[0]) return 0
-  if (y >= tops[tops.length - 1]) return 1
-
-  let index = 0
-  while (index < tops.length - 2 && y >= tops[index + 1]) index += 1
-
-  const span = Math.max(1, tops[index + 1] - tops[index])
-  const local = Math.min(1, Math.max(0, (y - tops[index]) / span))
-  return (index + local) / (tops.length - 1)
-}
-
-function useScrollJourney(calm) {
-  const journeyRef = useRef(getJourney(0))
-  const [progress, setProgress] = useState(0)
-
-  useEffect(() => {
-    let raf = 0
-    const onScroll = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const nextProgress = journeyProgressForScroll()
-        journeyRef.current = getJourney(calm ? 0 : nextProgress)
-        setProgress(nextProgress)
-      })
-    }
-
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      cancelAnimationFrame(raf)
-    }
-  }, [calm])
-
-  return { journeyRef, progress }
-}
-
-function useActiveSection() {
-  const [active, setActive] = useState('inicio')
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((entry) => entry.isIntersecting && setActive(entry.target.id)),
-      { rootMargin: '-38% 0px -52% 0px' },
-    )
-    document.querySelectorAll('[data-spy]').forEach((element) => observer.observe(element))
-    return () => observer.disconnect()
-  }, [])
-
-  return active
-}
+const CURRENT_YEAR = 2026
 
 function TierBadge({ tier, label }) {
   return (
@@ -91,54 +18,23 @@ function TierBadge({ tier, label }) {
   )
 }
 
-function ProjectCard({ project, index, onOpen }) {
-  const featured = project.tier === 'alto'
-  const tech = project.stack ?? []
-
-  return (
-    <article className={`project ${featured ? 'project-featured' : ''} project-tier-${project.tier}`}>
-      <div className="project-body">
-        <div className="project-top">
-          <span className="project-index">Proyecto · {String(index + 1).padStart(2, '0')}</span>
-          <TierBadge tier={project.tier} label={project.tierLabel} />
-        </div>
-        <h3>{project.nombre}</h3>
-        <p className="project-subtitle">{project.subtitulo}</p>
-        <p className="project-description">{project.resumen}</p>
-        {featured && project.destacados?.[0] && (
-          <p className="project-highlight"><span aria-hidden="true">✳</span>{project.destacados[0]}</p>
-        )}
-        <div className="chips" aria-label="Tecnologías">
-          {tech.slice(0, 4).map((technology) => (
-            <span key={technology} className="chip dim">{technology}</span>
-          ))}
-          {tech.length > 4 && <span className="chip dim">+{tech.length - 4}</span>}
-        </div>
-        <div className="project-footer">
-          <span className="project-state">{project.estado}</span>
-          <button
-            type="button"
-            className="project-open"
-            aria-haspopup="dialog"
-            onClick={() => onOpen(project)}
-          >
-            Ver ficha <span aria-hidden="true">→</span>
-          </button>
-        </div>
-      </div>
-    </article>
-  )
-}
-
-function ProjectDialog({ project, onClose }) {
+function ProjectDialog({ project: mainProject, onClose }) {
   const panelRef = useRef(null)
   const closeRef = useRef(null)
+  const [subproject, setSubproject] = useState(null)
+  const project = subproject ?? mainProject
+
+  function showSubproject(next) {
+    setSubproject(next)
+    panelRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+    closeRef.current?.focus({ preventScroll: true })
+  }
 
   useEffect(() => {
     const opener = document.activeElement
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    closeRef.current?.focus()
+    closeRef.current?.focus({ preventScroll: true })
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -167,7 +63,7 @@ function ProjectDialog({ project, onClose }) {
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
-      if (opener instanceof HTMLElement) opener.focus()
+      if (opener instanceof HTMLElement) opener.focus({ preventScroll: true })
     }
   }, [onClose])
 
@@ -201,7 +97,25 @@ function ProjectDialog({ project, onClose }) {
         </header>
 
         <div className="dialog-body">
+          {subproject && (
+            <button type="button" className="editorial-trigger-btn" onClick={() => showSubproject(null)}>
+              ← Volver a {mainProject.nombre}
+            </button>
+          )}
           <p className="dialog-summary">{project.resumen}</p>
+
+          {project.subProjects?.length > 0 && (
+            <section className="dialog-section">
+              <h4>Simuladores</h4>
+              <div className="chips">
+                {project.subProjects.map((item) => (
+                  <button key={item.id} type="button" className="btn ghost" onClick={() => showSubproject(item)}>
+                    {item.nombre} <span aria-hidden="true">↗</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           <dl className="dialog-facts">
             <div><dt>Periodo</dt><dd>{project.periodo}</dd></div>
@@ -290,140 +204,246 @@ function ProjectDialog({ project, onClose }) {
   )
 }
 
-function ProjectsExplorer({ projects, note, series }) {
-  const [tier, setTier] = useState('todos')
-  const [selected, setSelected] = useState(null)
-  const closeDialog = useCallback(() => setSelected(null), [])
-
-  const counts = {
-    todos: projects.length,
-    alto: projects.filter((project) => project.tier === 'alto').length,
-    medio: projects.filter((project) => project.tier === 'medio').length,
-    bajo: projects.filter((project) => project.tier === 'bajo').length,
-  }
-  const visible = tier === 'todos' ? projects : projects.filter((project) => project.tier === tier)
-
+function EditorialHeading({ kicker, titleLead, titleEmphasis, id }) {
   return (
-    <>
-      {series && (
-        <aside className="project-series" aria-label={`Serie ${series.title}`}>
-          <p className="project-series-kicker">Serie · {series.title}</p>
-          <p>{series.text}</p>
-        </aside>
-      )}
-
-      <div className="project-filters" role="group" aria-label="Filtrar proyectos por nivel">
-        {FILTERS.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            className={`filter-chip filter-${filter.id} ${tier === filter.id ? 'on' : ''}`}
-            aria-pressed={tier === filter.id}
-            onClick={() => setTier(filter.id)}
-          >
-            {filter.label}
-            <span>{counts[filter.id]}</span>
-          </button>
-        ))}
-      </div>
-
-      <p className="filter-summary" role="status" aria-live="polite">
-        {tier === 'todos'
-          ? `${projects.length} proyectos · ${counts.alto} de alto impacto, ${counts.medio} en evolución y ${counts.bajo} experimentos`
-          : `${visible.length} ${visible.length === 1 ? 'proyecto' : 'proyectos'} · ${TIER_META[tier]?.label}`}
-      </p>
-
-      {visible.length > 0 ? (
-        <div className="projects">
-          {visible.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              index={project.orden - 1}
-              onOpen={setSelected}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="projects-empty">No hay proyectos en este nivel todavía.</p>
-      )}
-
-      {note && <p className="section-note"><span aria-hidden="true">✳</span>{note}</p>}
-
-      {selected && <ProjectDialog project={selected} onClose={closeDialog} />}
-    </>
+    <header className="editorial-head">
+      <p className="editorial-kicker">{kicker}</p>
+      <h2 id={id} className="editorial-title">
+        {titleLead} <em>{titleEmphasis}</em>
+      </h2>
+    </header>
   )
 }
 
-function SectionCard({ section, align, index, total }) {
+function EditorialSection({ section }) {
   return (
     <section
       id={section.id}
       data-spy
-      className={`stop ${align} ${section.projects ? 'stop-projects' : ''}`}
+      className={`stop stop-${section.id} editorial-stop`}
       aria-labelledby={`${section.id}-title`}
     >
-      <div className="chapter-index" aria-hidden="true">
-        <span>{String(index + 1).padStart(2, '0')}</span>
-        <i />
-        <span className="chapter-total">{String(total).padStart(2, '0')}</span>
+      <div data-scene={section.id} className={`editorial-scene editorial-story editorial-${section.id}`}>
+        <EditorialHeading
+          id={`${section.id}-title`}
+          kicker={section.kicker}
+          titleLead={section.titleLead}
+          titleEmphasis={section.titleEmphasis}
+        />
+        <p className="editorial-lead">{section.intro}</p>
+        {section.id === 'ramas' && (
+          <a className="editorial-trigger-btn" href="#flores">
+            <span>Ver proyectos</span>
+            <span aria-hidden="true">↓</span>
+          </a>
+        )}
       </div>
-      <div className="card">
-        <div className="card-meta">
-          <p className="kicker">{section.kicker}</p>
-          <span className="card-marker" aria-hidden="true">✳</span>
-        </div>
-        <h2 id={`${section.id}-title`}>{section.title}</h2>
-        <p className="intro">{section.intro}</p>
+    </section>
+  )
+}
 
-        {section.points && (
-          <ul className="points">
-            {section.points.map((point, pointIndex) => (
-              <li key={point.t}>
-                <span className="point-index">0{pointIndex + 1}</span>
-                <div><strong>{point.t}</strong><span>{point.d}</span></div>
+function FloresSection({ section, onSyncFlowerState, inView }) {
+  const stageRef = useRef(null)
+  const flowerNodeRefs = useRef([])
+
+  const protagonists = section.protagonists ?? []
+
+  const [activeFlowerIndex, setActiveFlowerIndex] = useState(-1)
+  const [hoveredFlowerIndex, setHoveredFlowerIndex] = useState(-1)
+  const [selectedDialogProject, setSelectedDialogProject] = useState(null)
+
+  const closeDialog = useCallback(() => setSelectedDialogProject(null), [setSelectedDialogProject])
+
+  useEffect(() => {
+    onSyncFlowerState?.({
+      stageEl: stageRef.current,
+      flowerNodes: flowerNodeRefs.current,
+      enabled: inView,
+      activeIndex: activeFlowerIndex,
+      hoveredIndex: hoveredFlowerIndex,
+    })
+    return () => {
+      onSyncFlowerState?.({ stageEl: null })
+    }
+  }, [onSyncFlowerState, activeFlowerIndex, hoveredFlowerIndex, inView])
+
+  const handleSelectFlower = (flowerIndex) => {
+    setActiveFlowerIndex(flowerIndex)
+  }
+
+  const openFlower = (index) => {
+    handleSelectFlower(index)
+    setSelectedDialogProject(protagonists[index])
+  }
+
+  const handleHoverFlower = (flowerIndex) => {
+    setHoveredFlowerIndex(flowerIndex)
+    onSyncFlowerState?.({ hoveredIndex: flowerIndex })
+  }
+
+  const handleFlowerKeyDown = (event, flowerIndex, controls = flowerNodeRefs.current) => {
+    const count = protagonists.length
+    if (!count) return
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      const next = (flowerIndex + 1) % count
+      handleSelectFlower(next)
+      controls[next]?.focus({ preventScroll: true })
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const prev = (flowerIndex - 1 + count) % count
+      handleSelectFlower(prev)
+      controls[prev]?.focus({ preventScroll: true })
+    }
+  }
+
+  return (
+    <section
+      id={section.id}
+      data-spy
+      className="stop stop-flores editorial-stop"
+      aria-labelledby="flores-title"
+    >
+      <div ref={stageRef} className="flores-stage">
+        <div data-scene="flores" className="editorial-scene editorial-flores">
+          <h2 id="flores-title" className="editorial-title flores-title">{section.kicker}</h2>
+          <ul className="flores-projects">
+            {protagonists.map((flower, index) => (
+              <li key={flower.id}>
+                <button
+                  type="button"
+                  className="flores-project"
+                  style={{ '--flower-accent': flower.accentColor }}
+                  aria-haspopup="dialog"
+                  onPointerEnter={() => handleHoverFlower(index)}
+                  onPointerLeave={() => handleHoverFlower(-1)}
+                  onFocus={() => handleHoverFlower(index)}
+                  onBlur={() => handleHoverFlower(-1)}
+                  onClick={() => openFlower(index)}
+                >
+                  <span className="flores-project-index" aria-hidden="true">{flower.flowerNumber}</span>
+                  <span className="flores-project-copy">
+                    <span className="flores-project-name">{flower.nombre}</span>
+                    <span className="flores-project-summary">{flower.preview}</span>
+                  </span>
+                  <span className="flores-project-arrow" aria-hidden="true">↗</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Copa interactiva del guayacán: 4 flores visibles, solo 1 protagonista activa */}
+        <div
+          className={`flores-canopy-map ${hoveredFlowerIndex >= 0 && hoveredFlowerIndex !== activeFlowerIndex ? 'has-preview' : ''}`}
+          hidden={!inView}
+          role="group"
+          aria-label="Cuatro flores interactivas en la copa del guayacán"
+        >
+          {protagonists.map((flower, fIndex) => {
+            const isSelected = activeFlowerIndex === fIndex
+            const isHovered = hoveredFlowerIndex === fIndex
+            return (
+              <button
+                key={flower.id}
+                ref={(el) => {
+                  flowerNodeRefs.current[fIndex] = el
+                }}
+                type="button"
+                className={`canopy-flower-node ${isSelected ? 'is-selected' : ''} ${isHovered ? 'is-hovered' : ''}`}
+                style={{
+                  '--flower-accent': flower.accentColor,
+                  '--flower-glow': flower.glowColor,
+                  '--fallback-x': `${flower.fallbackScreen.x}%`,
+                  '--fallback-y': `${flower.fallbackScreen.y}%`,
+                }}
+                aria-label={`Flor ${flower.flowerNumber}: ${flower.nombre}`}
+                aria-haspopup="dialog"
+                onClick={() => openFlower(fIndex)}
+                onMouseEnter={() => handleHoverFlower(fIndex)}
+                onMouseLeave={() => handleHoverFlower(-1)}
+                onFocus={() => handleHoverFlower(fIndex)}
+                onBlur={() => handleHoverFlower(-1)}
+                onKeyDown={(event) => handleFlowerKeyDown(event, fIndex)}
+              >
+                <span className="canopy-flower-ring" aria-hidden="true">
+                  <span className="canopy-flower-num">{flower.flowerNumber}</span>
+                </span>
+                <span className="canopy-flower-callout" aria-hidden="true">
+                  <span className="canopy-flower-leader" />
+                  <span className="canopy-flower-callout-num">{flower.flowerNumber}</span>
+                  <strong>{flower.nombre}</strong>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      {selectedDialogProject && (
+        <ProjectDialog project={selectedDialogProject} onClose={closeDialog} />
+      )}
+    </section>
+  )
+}
+
+function SemillasSection({ section }) {
+  const validChannels = (section.channels ?? []).filter(
+    (channel) => channel.href !== '#' && !channel.d.includes('ejemplo') && !channel.d.includes('tu-usuario'),
+  )
+
+  return (
+    <section
+      id={section.id}
+      data-spy
+      className="stop stop-semillas editorial-stop"
+      aria-labelledby={`${section.id}-title`}
+    >
+      <div data-scene="semillas" className="editorial-scene editorial-semillas">
+        <EditorialHeading
+          id={`${section.id}-title`}
+          kicker={section.kicker}
+          titleLead={section.titleLead}
+          titleEmphasis={section.titleEmphasis}
+        />
+
+        <p className="editorial-lead semillas-intro">{section.intro}</p>
+
+        {validChannels.length > 0 && (
+          <ul className="channels semillas-channels" aria-label="Canales de contacto">
+            {validChannels.map((channel) => (
+              <li key={channel.t}>
+                <a href={channel.href}>
+                  <strong>{channel.t}</strong>
+                  <span>{channel.d}</span>
+                  <span className="channel-arrow" aria-hidden="true">↗</span>
+                </a>
               </li>
             ))}
           </ul>
         )}
 
-        {section.groups && (
-          <div className="skills">
-            {section.groups.map((group, groupIndex) => (
-              <div key={group.t} className="skill-group">
-                <span className="skill-index">0{groupIndex + 1}</span>
-                <h3>{group.t}</h3>
-                <div className="chips">
-                  {group.items.map((item) => <span key={item} className="chip">{item}</span>)}
-                </div>
-                {group.where && <p className="skill-evidence">{group.where}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {section.projects && (
-          <ProjectsExplorer projects={section.projects} note={section.note} series={section.series} />
-        )}
-
-        {section.channels && (
-          <>
-            {section.channels.some((channel) => channel.href !== '#' && !channel.d.includes('ejemplo') && !channel.d.includes('tu-usuario')) ? (
-              <ul className="channels">
-                {section.channels
-                  .filter((channel) => channel.href !== '#' && !channel.d.includes('ejemplo') && !channel.d.includes('tu-usuario'))
-                  .map((channel) => (
-                    <li key={channel.t}><a href={channel.href}><strong>{channel.t}</strong><span>{channel.d}</span><span className="channel-arrow" aria-hidden="true">↗</span></a></li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="contact-note"><span className="contact-spark" aria-hidden="true">✳</span>{section.contactNote ?? 'Los canales de contacto se actualizarán aquí.'}</p>
-            )}
-          </>
-        )}
+        <div className="semillas-links">
+          <a className="editorial-trigger-btn" href="#flores">
+            <span>Explorar las cuatro flores</span>
+            <span aria-hidden="true">↑</span>
+          </a>
+          <a className="semillas-secondary-link" href="#inicio">
+            Volver al inicio ↑
+          </a>
+        </div>
       </div>
     </section>
   )
+}
+
+function SectionCard({ section, onSyncFlowerState, inView }) {
+  if (section.id === 'flores') {
+    return <FloresSection section={section} onSyncFlowerState={onSyncFlowerState} inView={inView} />
+  }
+  if (section.id === 'semillas') {
+    return <SemillasSection section={section} />
+  }
+  return <EditorialSection section={section} />
 }
 
 export default function App() {
@@ -431,22 +451,32 @@ export default function App() {
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
   )
   const [menuOpen, setMenuOpen] = useState(false)
-  const { journeyRef, progress } = useScrollJourney(reduceMotion)
-  const active = useActiveSection()
+  const { journeyRef, active } = useScrollJourney(reduceMotion)
+  const flowerStateRef = useRef({ activeIndex: -1, hoveredIndex: -1, stageEl: null })
+  const syncFlowerState = useCallback((patch) => {
+    Object.assign(flowerStateRef.current, patch)
+  }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('reduced-motion', reduceMotion)
     return () => document.documentElement.classList.remove('reduced-motion')
   }, [reduceMotion])
 
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onPreferenceChange = (event) => setReduceMotion(event.matches)
+    preference.addEventListener('change', onPreferenceChange)
+    return () => preference.removeEventListener('change', onPreferenceChange)
+  }, [])
+
   return (
     <>
-      <TreeViewer journeyRef={journeyRef} calm={reduceMotion} chromeless />
+      <TreeViewer journeyRef={journeyRef} flowerStateRef={flowerStateRef} calm={reduceMotion} chromeless />
 
       <nav className="topnav" aria-label="Navegación principal">
         <a className="brand" href="#inicio" onClick={() => setMenuOpen(false)}>
           <span className="brand-mark" aria-hidden="true"><i /></span>
-          <span>{PROFILE.name}<small>PORTAFOLIO · DESARROLLO DE SOFTWARE</small></span>
+          <span>{PROFILE.name}</span>
         </a>
         <button
           className={`menu-toggle ${menuOpen ? 'open' : ''}`}
@@ -483,8 +513,8 @@ export default function App() {
 
       <aside className="rail" aria-label="Progreso del recorrido">
         <div className="rail-line" />
-        <div className="rail-fill" style={{ height: `${progress * 100}%` }} />
-        <div className="rail-leaf" style={{ top: `${progress * 100}%` }} aria-hidden="true">✳</div>
+        <div className="rail-fill" />
+        <div className="rail-leaf" aria-hidden="true">✳</div>
         {STOP_IDS.map((id, index) => {
           const item = NAV.find((navItem) => navItem.id === id)
           return (
@@ -503,41 +533,36 @@ export default function App() {
 
       <main className="content">
         <header id="inicio" data-spy className="hero" aria-labelledby="hero-title">
-          <div className="hero-text">
-            <p className="eyebrow"><span className="eyebrow-mark" />{PROFILE.name} <i /> {PROFILE.role}</p>
-            <h1 id="hero-title">Ideas que<br /><em>echan raíces.</em></h1>
-            <p className="lede">{PROFILE.lede}</p>
-            <ul className="hero-stats" aria-label="Resumen del portafolio">
-              <li><strong>{PROJECT_STATS.total}</strong><span>proyectos</span></li>
-              <li><strong>{PROJECT_STATS.alto}</strong><span>proyectos destacados</span></li>
-              <li><strong>3</strong><span>ejes de trabajo</span></li>
-            </ul>
-            <div className="cta">
-              <a className="btn solid" href="#raices">Recorrer el árbol <span aria-hidden="true">↓</span></a>
-              <a className="btn ghost" href="#flores">Explorar proyectos <span aria-hidden="true">↗</span></a>
+          <div data-scene="hero" className="hero-text">
+            <p className="eyebrow">
+              <span>{PROFILE.name}</span>
+              <i aria-hidden="true" />
+              <span>{PROFILE.role}</span>
+            </p>
+            <h1 id="hero-title">
+              Ideas que<br /><em>echan raíces.</em>
+            </h1>
+            <p className="lede">{PROFILE.subtitle}</p>
+            <div className="hero-scroll-row">
+              <a className="hero-scroll-link" href="#raices">
+                <span>Explorar el recorrido</span>
+                <span className="hero-scroll-arrow" aria-hidden="true">↓</span>
+              </a>
             </div>
-            <p className="scroll-hint"><span className="scroll-line" />Desliza para comenzar el recorrido</p>
-          </div>
-          <div className="scene-note" aria-label="Escena 3D del guayacán">
-            <span className="scene-note-dot" />
-            <span>Un guayacán en flor<small>ESCENA INTERACTIVA · THREE.JS</small></span>
           </div>
         </header>
 
-        {SECTIONS.map((section, index) => (
+        {SECTIONS.map((section) => (
           <SectionCard
             key={section.id}
             section={section}
-            index={index}
-            total={SECTIONS.length}
-            align={index % 2 ? 'right' : 'left'}
+            onSyncFlowerState={syncFlowerState}
+            inView={active === section.id}
           />
         ))}
 
         <footer className="footer">
-          <span className="footer-mark" aria-hidden="true">✳</span>
-          <p>{PROFILE.tagline}</p>
-          <span>© {new Date().getFullYear()} {PROFILE.name}</span>
+          <span>© {CURRENT_YEAR} {PROFILE.name}</span>
         </footer>
       </main>
     </>

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { createBaseScene } from '../three/createBaseScene'
+import { createBaseScene, disposeObjectResources } from '../three/createBaseScene'
 import { loadTreeModel } from '../three/loadTreeModel'
 
 /**
  * Presentación — lienzo 3D del portafolio.
  * Modo fondo fijo: la cámara sigue el viaje del scroll (journeyRef),
- * con interpolación suave; el usuario aún puede orbitar encima.
+ * con interpolación suave.
  */
-export default function TreeViewer({ journeyRef, calm = false, chromeless = false }) {
+export default function TreeViewer({ journeyRef, flowerStateRef = null, calm = false, chromeless = false }) {
   const canvasRef = useRef(null)
   const foregroundCanvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -39,65 +39,141 @@ export default function TreeViewer({ journeyRef, calm = false, chromeless = fals
 
     const { renderer, scene, camera, controls, foregroundRenderer, foregroundScene, resize, tick, dispose } = sceneApi
     let root = null
-    let raf = 0
+    let rafId = null
     let disposed = false
-    let last = performance.now()
+    let last = null
+    let time = performance.now() / 1000
+    let lastFpsUpdate = 0
     let ema = 60
+    let viewportWidth = 1
+    let viewportHeight = 1
+    const pointer = { x: 0, y: 0, active: false }
+
+    const onPointerMove = (event) => {
+      if (event.pointerType !== 'mouse' || calmRef.current) return
+      pointer.x = event.clientX / viewportWidth * 2 - 1
+      pointer.y = 1 - event.clientY / viewportHeight * 2
+      pointer.active = true
+    }
+    const resetPointer = () => { pointer.active = false }
+    const onPointerOut = (event) => {
+      if (!event.relatedTarget) resetPointer()
+    }
+    if (chromeless) {
+      window.addEventListener('pointermove', onPointerMove, { passive: true })
+      window.addEventListener('pointerout', onPointerOut, { passive: true })
+      window.addEventListener('blur', resetPointer)
+    }
+
+    const scheduleFrame = () => {
+      if (disposed || document.hidden || rafId !== null) return
+      rafId = requestAnimationFrame(loop)
+    }
+
+    const cancelFrame = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+      }
+    }
+
+    const onVisibilityChange = () => {
+      last = null
+      if (document.hidden) {
+        resetPointer()
+        cancelFrame()
+      } else {
+        scheduleFrame()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     const fit = () => {
+      if (disposed) return
       const { clientWidth: w, clientHeight: h } = container
-      if (w > 0 && h > 0) resize(w, h)
+      viewportWidth = w || 1
+      viewportHeight = h || 1
+      if (w > 0 && h > 0 && resize(w, h)) {
+        scheduleFrame()
+      }
     }
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(container)
 
-    const loop = (now) => {
-      if (disposed) return
-      const dt = now - last
+    function loop(now) {
+      rafId = null
+      if (disposed || document.hidden) return
+      const dt = last === null ? 1000 / 60 : now - last
       last = now
-      if (dt > 0) {
+      const frameSeconds = Math.min(dt / 1000, 0.05)
+      time += frameSeconds
+      if (!chromeless && dt > 0) {
         ema += (1000 / dt - ema) * 0.05
-        if (!chromeless) setFps(Math.round(ema))
+        if (now - lastFpsUpdate > 250) {
+          lastFpsUpdate = now
+          setFps(Math.round(ema))
+        }
       }
-      // Viaje guiado: acercamiento suave a la parada del scroll.
-      if (journeyRef?.current) {
-        const k = calmRef.current ? 0 : 0.055
+      if (journeyRef?.current && !calmRef.current) {
+        const k = 1 - Math.pow(1 - 0.055, frameSeconds * 60)
         camera.position.lerp(journeyRef.current.position, k)
         controls.target.lerp(journeyRef.current.target, k)
       }
       controls.update()
-      if (!calmRef.current) tick?.(now / 1000)
-      else tick?.(0)
+      if (calmRef.current) resetPointer()
+      tick?.(calmRef.current ? 0 : time, flowerStateRef?.current, pointer, frameSeconds)
       renderer.render(scene, camera)
       if (foregroundRenderer && foregroundScene) foregroundRenderer.render(foregroundScene, camera)
-      raf = requestAnimationFrame(loop)
+      scheduleFrame()
     }
 
-    loadTreeModel(scene, setProgress)
+    Promise.resolve().then(() => {
+      if (disposed) return null
+      return loadTreeModel(
+        scene,
+        chromeless ? undefined : (p) => { if (!disposed) setProgress(p) },
+        () => disposed,
+      )
+    })
       .then((stats) => {
-        if (disposed) return
+        if (!stats) return
+        if (disposed) {
+          if (stats.root) {
+            scene.remove(stats.root)
+            disposeObjectResources(stats.root)
+          }
+          return
+        }
         root = stats.root
-        setStatus('Árbol cargado correctamente')
-        raf = requestAnimationFrame(loop)
+        if (!chromeless) setStatus('Árbol cargado correctamente')
+        scheduleFrame()
       })
       .catch((err) => {
+        if (disposed) return
         console.error('[Etapa2] Error cargando GLB:', err)
         setError('No se pudo cargar /models/tree.glb. Revisa que el archivo exista en public/models/.')
         setStatus('Error de carga')
       })
 
     // Bucle de render incluso antes de cargar, para ver fondo y rejilla.
-    raf = requestAnimationFrame(loop)
+    scheduleFrame()
 
     return () => {
       disposed = true
-      cancelAnimationFrame(raf)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerout', onPointerOut)
+      window.removeEventListener('blur', resetPointer)
+      cancelFrame()
       observer.disconnect()
-      if (root) scene.remove(root)
       dispose()
+      if (root) {
+        scene.remove(root)
+        root = null
+      }
     }
-  }, [journeyRef, chromeless])
+  }, [journeyRef, chromeless, flowerStateRef])
 
   if (chromeless) {
     return (

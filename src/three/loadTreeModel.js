@@ -1,78 +1,114 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { terrainHeight } from './createBaseScene.js'
+import { disposeObjectResources, terrainHeight } from './createBaseScene.js'
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/tree.glb`
 const TARGET_HEIGHT = 4.2
+const IDENTITY_MATRIX = new THREE.Matrix4()
 
-function collectStats(root) {
-  const meshes = []
-  const materials = new Set()
-  root.traverse((child) => {
-    if (child.isMesh && !child.isInstancedMesh) {
-      meshes.push(child)
-      const mats = Array.isArray(child.material) ? child.material : [child.material]
-      mats.forEach((m) => m && materials.add(m))
+function hasBranchMaterial(material) {
+  if (Array.isArray(material)) {
+    for (let i = 0; i < material.length; i++) {
+      if (material[i]?.name?.toLowerCase().includes('branch')) return true
     }
-  })
-  return { meshCount: meshes.length, materialCount: materials.size }
+    return false
+  }
+  return Boolean(material?.name?.toLowerCase().includes('branch'))
 }
 
-function findTrunkBaseAnchor(root, fallback) {
-  root.updateMatrixWorld(true)
-  const inverseRoot = root.matrixWorld.clone().invert()
-  const points = []
-  const point = new THREE.Vector3()
-  const toRoot = new THREE.Matrix4()
-
-  const collectPoints = (filterByBranch) => {
-    root.traverse((child) => {
-      if (!child.isMesh) return
-      if (filterByBranch) {
-        const materials = Array.isArray(child.material) ? child.material : [child.material]
-        if (!materials.some((material) => material?.name?.toLowerCase().includes('branch'))) return
-      }
-
-      const positions = child.geometry?.attributes?.position
-      if (!positions) return
-      toRoot.multiplyMatrices(inverseRoot, child.matrixWorld)
-      for (let i = 0; i < positions.count; i++) {
-        point.fromBufferAttribute(positions, i).applyMatrix4(toRoot)
-        points.push(point.clone())
-      }
-    })
+function findTrunkBaseAnchor(root, fallback, precomputedRootBox = null) {
+  if (!precomputedRootBox) {
+    root.updateMatrixWorld(true)
   }
+  const inverseRoot = root.matrixWorld.clone().invert()
+  const branchMeshes = []
+  const allMeshes = []
 
   // Intenta primero con mallas de ramas/tronco; si el modelo es horneado o de una sola malla, usa todo el modelo.
-  collectPoints(true)
-  if (!points.length) {
-    collectPoints(false)
-  }
+  root.traverse((child) => {
+    if (!child.isMesh) return
+    const positions = child.geometry?.attributes?.position
+    if (!positions || positions.count === 0) return
+    allMeshes.push(child)
+    if (hasBranchMaterial(child.material)) {
+      branchMeshes.push(child)
+    }
+  })
 
-  if (!points.length) return fallback.clone()
+  const targetMeshes = branchMeshes.length > 0 ? branchMeshes : allMeshes
+  if (targetMeshes.length === 0) return fallback.clone()
+
+  const point = new THREE.Vector3()
+  const meshEntries = targetMeshes.map((mesh) => {
+    const toRoot = new THREE.Matrix4().multiplyMatrices(inverseRoot, mesh.matrixWorld)
+    const isIdentity = toRoot.equals(IDENTITY_MATRIX)
+    return {
+      positions: mesh.geometry.attributes.position,
+      boundingBox: mesh.geometry.boundingBox,
+      toRoot,
+      isIdentity,
+    }
+  })
 
   let minY = Infinity
   let maxY = -Infinity
-  for (const vertex of points) {
-    minY = Math.min(minY, vertex.y)
-    maxY = Math.max(maxY, vertex.y)
+
+  const canUsePrecomputedRootBox =
+    precomputedRootBox &&
+    !precomputedRootBox.isEmpty() &&
+    branchMeshes.length === 0 &&
+    root.matrixWorld.equals(IDENTITY_MATRIX) &&
+    meshEntries.every((entry) => entry.isIdentity && entry.boundingBox && !entry.boundingBox.isEmpty())
+
+  if (canUsePrecomputedRootBox) {
+    minY = precomputedRootBox.min.y
+    maxY = precomputedRootBox.max.y
+  } else {
+    for (let m = 0; m < meshEntries.length; m++) {
+      const { positions, boundingBox, toRoot, isIdentity } = meshEntries[m]
+      if (isIdentity && boundingBox && !boundingBox.isEmpty()) {
+        if (boundingBox.min.y < minY) minY = boundingBox.min.y
+        if (boundingBox.max.y > maxY) maxY = boundingBox.max.y
+        continue
+      }
+      for (let i = 0; i < positions.count; i++) {
+        point.fromBufferAttribute(positions, i).applyMatrix4(toRoot)
+        if (point.y < minY) minY = point.y
+        if (point.y > maxY) maxY = point.y
+      }
+    }
   }
 
   // El centro de los vértices bajos del tronco da un anclaje más fiel que
   // el centro de la copa, que suele estar desplazado por el volumen de hojas.
   const baseLimit = minY + Math.max((maxY - minY) * 0.065, 0.01)
-  const anchor = new THREE.Vector3(0, minY, 0)
+  let sumX = 0
+  let sumZ = 0
   let count = 0
-  for (const vertex of points) {
-    if (vertex.y > baseLimit) continue
-    anchor.x += vertex.x
-    anchor.z += vertex.z
-    count++
+
+  for (let m = 0; m < meshEntries.length; m++) {
+    const { positions, toRoot, isIdentity } = meshEntries[m]
+    if (isIdentity) {
+      for (let i = 0; i < positions.count; i++) {
+        const y = positions.getY(i)
+        if (y > baseLimit) continue
+        sumX += positions.getX(i)
+        sumZ += positions.getZ(i)
+        count++
+      }
+    } else {
+      for (let i = 0; i < positions.count; i++) {
+        point.fromBufferAttribute(positions, i).applyMatrix4(toRoot)
+        if (point.y > baseLimit) continue
+        sumX += point.x
+        sumZ += point.z
+        count++
+      }
+    }
   }
+
   if (!count) return fallback.clone()
-  anchor.x /= count
-  anchor.z /= count
-  return anchor
+  return new THREE.Vector3(sumX / count, minY, sumZ / count)
 }
 
 function addCanopyFlowers(leavesMesh, clusterCount = 24) {
@@ -187,17 +223,22 @@ function addCanopyFlowers(leavesMesh, clusterCount = 24) {
  * Carga el GLB del árbol y lo normaliza:
  * alinea la base del tronco con las raíces y escala a una altura objetivo.
  */
-export async function loadTreeModel(scene, onProgress) {
+export async function loadTreeModel(scene, onProgress, shouldAbort) {
   const loader = new GLTFLoader()
   const gltf = await loader.loadAsync(MODEL_URL, (e) => {
+    if (shouldAbort?.()) return
     if (e.total > 0) onProgress?.(e.loaded / e.total)
   })
 
   const root = gltf.scene
+  if (shouldAbort?.()) {
+    disposeObjectResources(root)
+    return null
+  }
   const box = new THREE.Box3().setFromObject(root)
   const size = box.getSize(new THREE.Vector3())
   const center = box.getCenter(new THREE.Vector3())
-  const trunkBase = findTrunkBaseAnchor(root, new THREE.Vector3(center.x, box.min.y, center.z))
+  const trunkBase = findTrunkBaseAnchor(root, new THREE.Vector3(center.x, box.min.y, center.z), box)
 
   const scale = TARGET_HEIGHT / Math.max(size.y, 0.001)
   root.scale.setScalar(scale)
@@ -209,11 +250,18 @@ export async function loadTreeModel(scene, onProgress) {
   )
 
   scene.add(root)
+  let meshCount = 0
+  const materials = new Set()
+  let canopyFlowersAdded = false
+
   // Conserva la textura del GLB y suma los reflejos dorados/violetas del escenario.
   root.traverse((child) => {
-    const mats = child.isMesh
-      ? Array.isArray(child.material) ? child.material : [child.material]
-      : []
+    if (!child.isMesh) return
+    const mats = Array.isArray(child.material) ? child.material : [child.material]
+    if (!child.isInstancedMesh) {
+      meshCount++
+      mats.forEach((m) => m && materials.add(m))
+    }
     mats.forEach((m) => {
       if (!m || !('emissive' in m)) return
 
@@ -223,6 +271,7 @@ export async function loadTreeModel(scene, onProgress) {
         m.emissiveIntensity = 0.24
         m.roughness = 0.92
         addCanopyFlowers(child, window.matchMedia?.('(max-width: 700px)').matches ? 14 : 24)
+        canopyFlowersAdded = true
       } else if (m.name === 'branches') {
         m.color.set('#b49bbc')
         m.emissive.set('#1c122a')
@@ -231,13 +280,14 @@ export async function loadTreeModel(scene, onProgress) {
       }
     })
   })
-  const stats = collectStats(root)
-  const finalBox = new THREE.Box3().setFromObject(root)
-  const finalSize = finalBox.getSize(new THREE.Vector3())
+  const finalSize = canopyFlowersAdded
+    ? new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3())
+    : size.clone().multiplyScalar(scale)
 
   return {
     root,
-    ...stats,
+    meshCount,
+    materialCount: materials.size,
     scaleApplied: scale,
     size: { x: +finalSize.x.toFixed(2), y: +finalSize.y.toFixed(2), z: +finalSize.z.toFixed(2) },
   }
